@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from ui import IntegratedApp
 
 # 假設這是本地當前版本
-CURRENT_VERSION = "v1.0.8"
+CURRENT_VERSION = "v1.0.9"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
