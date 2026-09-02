@@ -224,7 +224,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
             }
         """
         )
-        self.btn_reset.clicked.connect(self.reset_form_completely)
+        self.btn_reset.clicked.connect(lambda: self.reset_form_completely(ask=True))
 
         top_header_layout.addWidget(self.lbl_progress, stretch=1)
         top_header_layout.addWidget(self.btn_reset)
