@@ -36,8 +36,8 @@ jobs:
         choco install innosetup -y
 
     - name: 編譯安裝檔 (Installer)
+      shell: cmd
       run: |
-        # 呼叫 Inno Setup 編譯器編譯 script
         "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
     - name: 建立 GitHub Release 並上傳安裝檔

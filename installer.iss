@@ -1,7 +1,7 @@
 [Setup]
 AppId={{5BA9828E-3B6A-469A-B3DE-776967A24E02}
 AppName=NTPC Road Right
-AppVersion=1.0.3
+AppVersion=1.0.4
 DefaultDirName={autopf}\NTPC Road Right
 DefaultGroupName=NTPC Road Right
 OutputDir=output
