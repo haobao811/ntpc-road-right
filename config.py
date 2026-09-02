@@ -44,6 +44,7 @@ HTML_CONTENT = """
                 });
             }
 
+            // 初始化地圖視窗中心（例如預設顯示新北市一帶），但不建立預設 Marker
             map = L.map('map').setView([24.9989, 121.5135], 16);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
