@@ -23,16 +23,27 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pyinstaller  # 確保有安裝打包工具
+        pip install pyinstaller
 
-    - name: 使用 PyInstaller 打包
+    - name: 使用 PyInstaller 打包 (資料夾模式)
       run: |
-        # 依照你的專案進入點調整，--onefile 代表打包成單一 exe
-        pyinstaller --onefile --noconsole main.py
+        # 注意這裡改成了 --onedir (或不加參數預設就是資料夾模式)
+        pyinstaller --onedir --noconsole main.py
 
-    - name: 建立 GitHub Release 並上傳檔案
+    - name: 安裝 Inno Setup
+      run: |
+        # 利用 choco 自動安裝 Inno Setup
+        choco install innosetup -y
+
+    - name: 編譯安裝檔 (Installer)
+      run: |
+        # 呼叫 Inno Setup 編譯器編譯 script
+        "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+    - name: 建立 GitHub Release 並上傳安裝檔
       uses: softprops/action-gh-release@v2
       with:
-        files: dist/main.exe  # 打包好的檔案路徑
+        # 指向 output 資料夾下剛剛打包好的安裝檔
+        files: output/ntpc-road-right-setup.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
