@@ -32,9 +32,27 @@ def check_and_update():
             latest_version = data["tag_name"]  # 例如 "v1.1.0"
 
             if latest_version != CURRENT_VERSION:
+                # 必須先建立 QApplication 才能使用 QMessageBox 彈出視窗
+                app = QApplication.instance()
+                if not app:
+                    app = QApplication(sys.argv)
+
+                reply = QMessageBox.question(
+                    None,
+                    "發現新版本",
+                    f"偵測到新版本 {latest_version}（目前版本：{CURRENT_VERSION}）\n是否要立即下載並更新？",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes
+                )
+
+                if reply != QMessageBox.StandardButton.Yes:
+                    logging.info("使用者選擇暫不更新。")
+                    return
+
                 assets = data.get("assets", [])
                 if not assets:
                     logging.warning("找到新版本，但沒有可下載的附件。")
+                    QMessageBox.warning(None, "更新失敗", "找到新版本，但沒有可下載的附件檔案。")
                     return
 
                 download_url = assets[0]["browser_download_url"]
@@ -42,7 +60,6 @@ def check_and_update():
 
                 logging.info(f"發現新版本: {latest_version} (目前版本: {CURRENT_VERSION})，準備自動更新...")
 
-                # 彈出提示或直接下載
                 # 下載到暫存資料夾
                 temp_dir = tempfile.gettempdir()
                 installer_path = os.path.join(temp_dir, file_name)
@@ -56,8 +73,7 @@ def check_and_update():
 
                     logging.info("下載完成，正在啟動安裝程式並關閉當前應用程式...")
 
-                    # 執行下載的新版本/安裝包（假設它是 exe 執行檔或安裝檔）
-                    # 若是免安裝單一exe，可用 script 替換；若是安裝檔則直接執行
+                    # 執行下載的新版本/安裝包
                     subprocess.Popen([installer_path], shell=True)
                     sys.exit(0)
             else:
@@ -69,9 +85,11 @@ def check_and_update():
 
 
 if __name__ == "__main__":
-    check_and_update()
-
+    # 注意：Qt 應用程式通常需要先初始化 QApplication 才能安全建立 QMessageBox
+    # 這裡我們提前初始化以支援 check_and_update 裡的提示框
     app = QApplication(sys.argv)
+
+    check_and_update()
 
     # 檢查是否安裝 Tesseract OCR
     try:
