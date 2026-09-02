@@ -2,10 +2,13 @@
 系統配置檔與前端 HTML 範本
 """
 
+import logging
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from models import StaticUserInfo
 
@@ -119,8 +122,16 @@ address = os.getenv("USER_ADDRESS")
 reason = os.getenv("USER_REASON")
 resident = os.getenv("USER_RESIDENT")
 
+# 確保在跳出彈跳視窗前已有 QApplication 實例
+app = QApplication.instance()
+if not app:
+    app = QApplication(sys.argv)
+
 if not all([name, id_num, mobile, email, town, address, reason, resident]):
-    raise ValueError("偵測到環境變數中缺少必要的個人資料設定，請檢查 .env 檔案！")
+    error_msg = "偵測到環境變數中缺少必要的個人資料設定，請檢查 .env 檔案！"
+    logging.error(error_msg)
+    QMessageBox.critical(None, "設定錯誤", error_msg)
+    sys.exit(1)
 
 STATIC_USER_INFO = StaticUserInfo(
     name=name,
@@ -132,6 +143,10 @@ STATIC_USER_INFO = StaticUserInfo(
     reason=reason,
     resident=resident,
 )
+
 ID_IMAGE = str(Path("./id.jpg").absolute())
 if not os.path.isfile(ID_IMAGE):
-    raise FileNotFoundError(f"找不到身分證圖片檔案，請確認該檔案是否存在於: {ID_IMAGE}")
+    error_msg = f"找不到身分證圖片檔案，請確認該檔案是否存在於:\n{ID_IMAGE}"
+    logging.error(error_msg)
+    QMessageBox.critical(None, "檔案遺失", error_msg)
+    sys.exit(1)
