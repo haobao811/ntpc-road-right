@@ -1,7 +1,11 @@
-tenacity
-python-dotenv
 beautifulsoup4
-PyQt6-WebEngine-Qt6
-selenium
-pytesseract
 pandas
+PyQt6
+PyQt6-WebEngine
+PyQt6-WebEngine-Qt6
+pytesseract
+python-dotenv
+requests
+selenium
+tenacity
+webdriver-manager

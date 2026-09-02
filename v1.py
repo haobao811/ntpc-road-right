@@ -1,42 +1,40 @@
 import calendar
-import re
 import io
+import logging
+import re
 import threading
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-)
+import time
+import tkinter as tk
 import unicodedata
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
-import time
-import xml.etree.ElementTree as ET
 from tkinter import filedialog, messagebox
-import tkinter as tk
-import logging
+
 import pandas as pd
+import pytesseract
 import requests
+import ttkbootstrap as ttk
+from PIL import Image
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-import ttkbootstrap as ttk
+from selenium.webdriver.support.ui import Select, WebDriverWait
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 from ttkbootstrap.constants import BOTH, CENTER, LEFT, RIGHT, TOP, W, X
 from webdriver_manager.chrome import ChromeDriverManager
-from PIL import Image
-import pytesseract
 
 # ==========================================
 # 1. 資料模型 (Data Classes)
 # ==========================================
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 logger = logging.getLogger(__name__)
 
@@ -177,9 +175,7 @@ def get_village_by_address(address: str) -> dict:
     }
 
     try:
-        res_arcgis = requests.get(
-            arcgis_url, params=arcgis_params, headers=headers, timeout=15
-        )
+        res_arcgis = requests.get(arcgis_url, params=arcgis_params, headers=headers, timeout=15)
         res_arcgis.raise_for_status()
         arcgis_data = res_arcgis.json()
 
@@ -241,9 +237,7 @@ def get_village_chief_info(village_name: str, district_name: str = None) -> dict
         filtered_df = df[df["village"] == village_name]
 
         if district_name and not filtered_df.empty:
-            filtered_df = filtered_df[
-                filtered_df["address"].str.contains(district_name, na=False)
-            ]
+            filtered_df = filtered_df[filtered_df["address"].str.contains(district_name, na=False)]
 
         if filtered_df.empty:
             dist_str = f"（{district_name}）" if district_name else ""
@@ -295,94 +289,62 @@ class AutoFillForm:
 
             # 填寫基礎表單欄位
             logger.info("填寫申請人資料")
+            self.wait.until(EC.visibility_of_element_located((By.NAME, "applNameP"))).send_keys(input_value.name)
             self.wait.until(
-                EC.visibility_of_element_located((By.NAME, "applNameP"))
-            ).send_keys(input_value.name)
-            self.wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//input[@type='radio' and @id='sex' and @value='F']")
-                )
+                EC.element_to_be_clickable((By.XPATH, "//input[@type='radio' and @id='sex' and @value='F']"))
             ).click()
             logger.info("填寫身分證字號")
-            self.wait.until(EC.element_to_be_clickable((By.NAME, "idNum"))).send_keys(
-                input_value.id
-            )
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "idNum"))).send_keys(input_value.id)
             logger.info("填寫手機號碼")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applMobile"))
-            ).send_keys(input_value.mobile)
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applMobile"))).send_keys(input_value.mobile)
             logger.info("填寫電子郵件")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applEmail"))
-            ).send_keys(input_value.email)
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applEmail"))).send_keys(input_value.email)
             logger.info("填寫區域")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applTown"))
-            ).send_keys(input_value.town)
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applTown"))).send_keys(input_value.town)
             logger.info("填寫地址")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applAddr"))
-            ).send_keys(input_value.address)
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applAddr"))).send_keys(input_value.address)
             logger.info("填寫理由")
             # 選擇申請類型與理由
             logger.info("選擇申請類型")
-            self.wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//label[@for='applyType']"))
-            ).click()
+            self.wait.until(EC.element_to_be_clickable((By.XPATH, "//label[@for='applyType']"))).click()
             logger.info("填寫理由")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applyReason"))
-            ).send_keys(input_value.reason)
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applyReason"))).send_keys(input_value.reason)
 
             # 填入動態施工資料
             logger.info("填寫區域")
-            town_select_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "applyRoadTown"))
-            )
+            town_select_element = self.wait.until(EC.presence_of_element_located((By.ID, "applyRoadTown")))
             town_select = Select(town_select_element)
             logger.info("選擇區域")
             town_select.select_by_visible_text(apply_info.town)
             logger.info("填寫地址")
             logger.info("填寫路名")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applyRoadAddr"))
-            ).send_keys(apply_info.short_address)
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applyRoadAddr"))).send_keys(apply_info.short_address)
             logger.info("填寫路名")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applyRoadNumStr"))
-            ).send_keys(apply_info.road_number)
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applyRoadNumStr"))).send_keys(apply_info.road_number)
             logger.info("填寫路名")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applyRoadNumEnd"))
-            ).send_keys(apply_info.road_number)
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applyRoadNumEnd"))).send_keys(apply_info.road_number)
             logger.info("填寫開始日期")
-            self.wait.until(
-                EC.element_to_be_clickable((By.NAME, "applyStrDt"))
-            ).send_keys(apply_info.start_datetime.strftime("%Y-%m-%d"))
+            self.wait.until(EC.element_to_be_clickable((By.NAME, "applyStrDt"))).send_keys(
+                apply_info.start_datetime.strftime("%Y-%m-%d")
+            )
 
             # 【修正】: 轉為兩位數字串（例如 '10', '00'）
             hour_str = f"{apply_info.start_datetime.hour:02d}"
             minute_str = f"{apply_info.start_datetime.minute:02d}"
 
             logger.info("選擇開始時間")
-            hour_select_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "asdHour"))
-            )
+            hour_select_element = self.wait.until(EC.presence_of_element_located((By.ID, "asdHour")))
             hour_select = Select(hour_select_element)
             hour_select.select_by_visible_text(hour_str)
             logger.info("選擇開始時間")
-            minute_select_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "asdMinute"))
-            )
+            minute_select_element = self.wait.until(EC.presence_of_element_located((By.ID, "asdMinute")))
             minute_select = Select(minute_select_element)
             minute_select.select_by_visible_text(minute_str)
 
             logger.info("填寫結束日期")
             end_datetime = apply_info.start_datetime + apply_info.duration
             logger.info("填寫結束日期")
-            end_date_input_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "applyEndDt"))
-            )
+            end_date_input_element = self.wait.until(EC.presence_of_element_located((By.ID, "applyEndDt")))
             end_date_input_element.send_keys(end_datetime.strftime("%Y-%m-%d"))
 
             logger.info("填寫結束時間")
@@ -390,23 +352,17 @@ class AutoFillForm:
             end_minute_str = f"{end_datetime.minute:02d}"
 
             logger.info("選擇結束時間")
-            end_hour_select_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "aedHour"))
-            )
+            end_hour_select_element = self.wait.until(EC.presence_of_element_located((By.ID, "aedHour")))
             end_hour_select = Select(end_hour_select_element)
             end_hour_select.select_by_visible_text(end_hour_str)
 
             logger.info("選擇結束時間")
-            end_minute_select_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "aedMinute"))
-            )
+            end_minute_select_element = self.wait.until(EC.presence_of_element_located((By.ID, "aedMinute")))
             end_minute_select = Select(end_minute_select_element)
             end_minute_select.select_by_visible_text(end_minute_str)
 
             logger.info("填寫村里")
-            village_name_input_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "villageName"))
-            )
+            village_name_input_element = self.wait.until(EC.presence_of_element_located((By.ID, "villageName")))
             village_name_input_element.send_keys(apply_info.chief_name)
 
             today = date.today()
@@ -414,29 +370,21 @@ class AutoFillForm:
             village_notify_date_input_element = self.wait.until(
                 EC.presence_of_element_located((By.ID, "villageNotifyDt"))
             )
-            village_notify_date_input_element.send_keys(
-                (today - timedelta(days=1)).strftime("%Y-%m-%d")
-            )
+            village_notify_date_input_element.send_keys((today - timedelta(days=1)).strftime("%Y-%m-%d"))
 
             logger.info("填寫里長姓名")
-            residendt_name_input_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "residendtName"))
-            )
+            residendt_name_input_element = self.wait.until(EC.presence_of_element_located((By.ID, "residendtName")))
             residendt_name_input_element.send_keys("蕭秋霖")
 
             logger.info("填寫里長通知日期")
             residendt_notify_date_input_element = self.wait.until(
                 EC.presence_of_element_located((By.ID, "residendtNotifyDt"))
             )
-            residendt_notify_date_input_element.send_keys(
-                (today - timedelta(days=1)).strftime("%Y-%m-%d")
-            )
+            residendt_notify_date_input_element.send_keys((today - timedelta(days=1)).strftime("%Y-%m-%d"))
 
             # 驗證碼辨識
             logger.info("辨識驗證碼")
-            img_element = self.wait.until(
-                EC.visibility_of_element_located((By.ID, "authImage"))
-            )
+            img_element = self.wait.until(EC.visibility_of_element_located((By.ID, "authImage")))
             img_bytes = img_element.screenshot_as_png
             image = Image.open(io.BytesIO(img_bytes))
 
@@ -450,9 +398,7 @@ class AutoFillForm:
             logger.info("辨識到的驗證碼為: %s", code_text)
 
             logger.info("填寫驗證碼")
-            auth_code_input_element = self.wait.until(
-                EC.presence_of_element_located((By.ID, "atuh_gCode"))
-            )
+            auth_code_input_element = self.wait.until(EC.presence_of_element_located((By.ID, "atuh_gCode")))
             auth_code_input_element.click()
             auth_code_input_element.send_keys(code_text)
 
@@ -466,9 +412,7 @@ class AutoFillForm:
 
             #  button[data-ng-click="doSave(ac125024);"]
             self.wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//button[@data-ng-click='doSave(ac125024);']")
-                )
+                EC.element_to_be_clickable((By.XPATH, "//button[@data-ng-click='doSave(ac125024);']"))
             ).click()
 
             # 滾動到頁面最上方
@@ -554,9 +498,7 @@ def show_senior_warning(parent, title, message):
     msg_label.pack(pady=(10, 25))
 
     btn_style = ttk.Style()
-    btn_style.configure(
-        "SeniorWarning.TButton", font=("Microsoft JhengHei", 15, "bold")
-    )
+    btn_style.configure("SeniorWarning.TButton", font=("Microsoft JhengHei", 15, "bold"))
 
     ok_btn = ttk.Button(
         main_frame,
@@ -695,9 +637,7 @@ class SeniorFriendlyUI:
         )
         title_label.pack(pady=(0, 10))
 
-        ttk.Label(self.main_frame, text="1. 請輸入地址：", font=self.font_label).pack(
-            anchor=W, pady=(5, 2)
-        )
+        ttk.Label(self.main_frame, text="1. 請輸入地址：", font=self.font_label).pack(anchor=W, pady=(5, 2))
         self.addr_entry = tk.Entry(
             self.main_frame,
             font=self.font_entry,
@@ -711,13 +651,9 @@ class SeniorFriendlyUI:
         self.addr_entry.insert(0, "新北市")
         self.addr_entry.pack(fill=X, ipady=4, pady=(0, 10))
 
-        ttk.Label(self.main_frame, text="2. 請選擇日期：", font=self.font_label).pack(
-            anchor=W, pady=(5, 2)
-        )
+        ttk.Label(self.main_frame, text="2. 請選擇日期：", font=self.font_label).pack(anchor=W, pady=(5, 2))
 
-        self.cal_container = ttk.Labelframe(
-            self.main_frame, bootstyle="info", padding=8
-        )
+        self.cal_container = ttk.Labelframe(self.main_frame, bootstyle="info", padding=8)
         self.cal_container.pack(fill=X, pady=(0, 10))
 
         self.style.configure("LargeToggle.TButton", font=self.font_selected_date)
@@ -781,9 +717,7 @@ class SeniorFriendlyUI:
 
         self.render_calendar()
 
-        ttk.Label(
-            self.main_frame, text="3. 請選擇開始時間：", font=self.font_label
-        ).pack(anchor=W, pady=(5, 2))
+        ttk.Label(self.main_frame, text="3. 請選擇開始時間：", font=self.font_label).pack(anchor=W, pady=(5, 2))
 
         time_frame = ttk.Frame(self.main_frame)
         time_frame.pack(fill=X, pady=(0, 10))
@@ -816,9 +750,7 @@ class SeniorFriendlyUI:
         self.minute_cb.set("00 分")
         self.minute_cb.pack(side=LEFT, ipady=3)
 
-        ttk.Label(
-            self.main_frame, text="4. 請選擇使用時間長短：", font=self.font_label
-        ).pack(anchor=W, pady=(5, 2))
+        ttk.Label(self.main_frame, text="4. 請選擇使用時間長短：", font=self.font_label).pack(anchor=W, pady=(5, 2))
 
         self.duration_cb = ttk.Combobox(
             self.main_frame,
@@ -830,9 +762,7 @@ class SeniorFriendlyUI:
         self.duration_cb.set("6 小時")
         self.duration_cb.pack(fill=X, ipady=4, pady=(0, 10))
 
-        ttk.Label(self.main_frame, text="5. 上傳路權圖檔：", font=self.font_label).pack(
-            anchor=W, pady=(5, 2)
-        )
+        ttk.Label(self.main_frame, text="5. 上傳路權圖檔：", font=self.font_label).pack(anchor=W, pady=(5, 2))
 
         img_frame = ttk.Frame(self.main_frame)
         img_frame.pack(fill=X, pady=(0, 10))
@@ -903,9 +833,7 @@ class SeniorFriendlyUI:
         for widget in self.grid_frame.winfo_children():
             widget.destroy()
 
-        self.month_label.config(
-            text=f"{self.current_year} 年 {self.current_month:02d} 月"
-        )
+        self.month_label.config(text=f"{self.current_year} 年 {self.current_month:02d} 月")
         cal = calendar.monthcalendar(self.current_year, self.current_month)
 
         for r, week in enumerate(cal):
@@ -1078,9 +1006,7 @@ class SeniorFriendlyUI:
             # 恢復按鈕狀態
             self.root.after(
                 0,
-                lambda: self.submit_btn.config(
-                    state="normal", text="確認送出並填寫表單 ➔"
-                ),
+                lambda: self.submit_btn.config(state="normal", text="確認送出並填寫表單 ➔"),
             )
 
 

@@ -15,10 +15,20 @@ from PyQt6.QtCore import QDate, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QTextCharFormat
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import (QApplication, QCalendarWidget, QComboBox,
-                             QFileDialog, QHBoxLayout, QLabel, QLineEdit,
-                             QMessageBox, QPushButton, QStackedWidget,
-                             QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (
+    QApplication,
+    QCalendarWidget,
+    QComboBox,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from config import HTML_CONTENT, LOC_COORDINATES, WEEKDAYS_ZH
 from gis import get_coordinates_by_address
@@ -125,7 +135,8 @@ def show_elder_question(parent: QWidget, title: str, text: str) -> bool:
     msg.setStyleSheet(MSG_BOX_STYLE)
 
     no_btn = msg.addButton("取消", QMessageBox.ButtonRole.NoRole)
-    no_btn.setStyleSheet("""
+    no_btn.setStyleSheet(
+        """
         QPushButton {
             color: #6c757d;
             background-color: transparent;
@@ -140,7 +151,8 @@ def show_elder_question(parent: QWidget, title: str, text: str) -> bool:
             background-color: #495057;
             border: 1px solid #495057;
         }
-    """)
+    """
+    )
     yes_btn = msg.addButton("確定", QMessageBox.ButtonRole.YesRole)
     msg.setDefaultButton(yes_btn)
     msg.exec()
@@ -163,10 +175,9 @@ def format_hour_item(hour: int) -> str:
 
 
 class IntegratedApp(QtWidgets.QMainWindow):
-
-    def __init__(self):
+    def __init__(self, version):
         super().__init__()
-        self.setWindowTitle("新北市路權申請系統")
+        self.setWindowTitle(f"新北市路權申請系統 {version}")
         self.resize(1200, 800)
 
         self.selected_date = None
@@ -192,14 +203,13 @@ class IntegratedApp(QtWidgets.QMainWindow):
         top_header_layout = QHBoxLayout()
         self.lbl_progress = QLabel("步驟 1 / 5：輸入施工地址")
         self.lbl_progress.setFont(QFont("Microsoft JhengHei", 16, QFont.Weight.Bold))
-        self.lbl_progress.setStyleSheet(
-            "color: #0d6efd; background-color: #e7f1ff; padding: 10px; border-radius: 6px;"
-        )
+        self.lbl_progress.setStyleSheet("color: #0d6efd; background-color: #e7f1ff; padding: 10px; border-radius: 6px;")
 
         self.btn_reset = QPushButton("🔄 重新填寫")
         self.btn_reset.setFont(QFont("Microsoft JhengHei", 12))
         self.btn_reset.setToolTip("放棄目前的輸入並重新開始")
-        self.btn_reset.setStyleSheet("""
+        self.btn_reset.setStyleSheet(
+            """
             QPushButton {
                 background-color: #f8f9fa;
                 color: #6c757d;
@@ -212,7 +222,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 color: #495057;
                 border-color: #adb5bd;
             }
-        """)
+        """
+        )
         self.btn_reset.clicked.connect(self.reset_form_completely)
 
         top_header_layout.addWidget(self.lbl_progress, stretch=1)
@@ -265,7 +276,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.calendar.setMinimumDate(min_date)
         self.calendar.setFont(QFont("Microsoft JhengHei", 11))
 
-        self.calendar.setStyleSheet("""
+        self.calendar.setStyleSheet(
+            """
             QCalendarWidget {
                 background-color: #ffffff;
                 border: 2px solid #0d6efd;
@@ -309,18 +321,15 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 font-size: 15px;
                 font-weight: bold;
             }
-            """)
+            """
+        )
 
         self.apply_disabled_dates_format(min_date)
         self.calendar.clicked.connect(self.on_date_selected)
-        self.calendar.currentPageChanged.connect(
-            lambda: self.apply_disabled_dates_format(min_date)
-        )
+        self.calendar.currentPageChanged.connect(lambda: self.apply_disabled_dates_format(min_date))
 
         self.lbl_selected_date_info = QLabel("尚未選擇日期")
-        self.lbl_selected_date_info.setFont(
-            QFont("Microsoft JhengHei", 13, QFont.Weight.Bold)
-        )
+        self.lbl_selected_date_info.setFont(QFont("Microsoft JhengHei", 13, QFont.Weight.Bold))
         self.lbl_selected_date_info.setStyleSheet("color: #6c757d;")
         p2_layout.addWidget(lbl_p2)
         p2_layout.addWidget(self.calendar)
@@ -376,7 +385,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         self.img_label = DragDropLabel("📁 點擊左側按鈕 或 將圖檔拖曳至此")
         self.img_label.setFont(QFont("Microsoft JhengHei", 12))
-        self.img_label.setStyleSheet("""
+        self.img_label.setStyleSheet(
+            """
             QLabel {
                 border: 2px dashed #0d6efd;
                 border-radius: 6px;
@@ -388,7 +398,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 background-color: #e9ecef;
                 color: #495057;
             }
-        """)
+        """
+        )
         self.img_label.file_dropped.connect(self.handle_dropped_image)
 
         img_layout.addWidget(self.btn_img)
@@ -417,9 +428,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         self.btn_next = QPushButton("下一步 ➡️")
         self.btn_next.setFont(QFont("Microsoft JhengHei", 13, QFont.Weight.Bold))
-        self.btn_next.setStyleSheet(
-            "background-color: #0d6efd; color: white; padding: 8px;"
-        )
+        self.btn_next.setStyleSheet("background-color: #0d6efd; color: white; padding: 8px;")
         self.btn_next.clicked.connect(self.go_next)
 
         nav_layout.addWidget(self.btn_prev)
@@ -522,9 +531,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.parsed_apply_info = apply_info
         self.is_parsing_address = False
         self.hide_loading()
-        logger.info(
-            f"背景解析里長成功: {apply_info.town} {apply_info.village} 里長: {apply_info.chief_name}"
-        )
+        logger.info(f"背景解析里長成功: {apply_info.town} {apply_info.village} 里長: {apply_info.chief_name}")
         if self.stacked_widget.currentIndex() == 4:
             self.update_summary()
 
@@ -547,26 +554,18 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         if idx > 0:
             self.comboBox_campus.setEnabled(False)
-            self.web_view.page().runJavaScript(
-                "if (typeof setMapClickable === 'function') { setMapClickable(false); }"
-            )
+            self.web_view.page().runJavaScript("if (typeof setMapClickable === 'function') { setMapClickable(false); }")
         else:
             self.comboBox_campus.setEnabled(True)
-            self.web_view.page().runJavaScript(
-                "if (typeof setMapClickable === 'function') { setMapClickable(true); }"
-            )
+            self.web_view.page().runJavaScript("if (typeof setMapClickable === 'function') { setMapClickable(true); }")
 
         if idx == 4:
             self.btn_next.setText("🚀 送出自動填表")
-            self.btn_next.setStyleSheet(
-                "background-color: #198754; color: white; padding: 8px; font-weight: bold;"
-            )
+            self.btn_next.setStyleSheet("background-color: #198754; color: white; padding: 8px; font-weight: bold;")
             self.update_summary()
         else:
             self.btn_next.setText("下一步 ➡️")
-            self.btn_next.setStyleSheet(
-                "background-color: #0d6efd; color: white; padding: 8px; font-weight: bold;"
-            )
+            self.btn_next.setStyleSheet("background-color: #0d6efd; color: white; padding: 8px; font-weight: bold;")
 
     def update_duration_options(self):
         """根據已選擇的開始時間，動態計算並更新施工時長選項，後方顯示 (結束: mm-dd H:M)"""
@@ -679,9 +678,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
     def reset_form_completely(self, ask=True):
         """一鍵清空所有填寫內容並返回步驟 1"""
-        if ask and not show_elder_question(
-            self, "重新填寫確認", "確定要放棄目前的輸入並重新開始嗎？"
-        ):
+        if ask and not show_elder_question(self, "重新填寫確認", "確定要放棄目前的輸入並重新開始嗎？"):
             return
 
         self.selected_date = None
@@ -705,7 +702,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.duration_cb.addItem("-- 請選擇施工時長 --")
 
         self.img_label.setText("📁 點擊左側按鈕 或 將圖檔拖曳至此")
-        self.img_label.setStyleSheet("""
+        self.img_label.setStyleSheet(
+            """
             QLabel {
                 border: 2px dashed #0d6efd;
                 border-radius: 6px;
@@ -713,16 +711,15 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 color: #6c757d;
                 padding: 10px;
             }
-        """)
+        """
+        )
         self.summary_label.clear()
 
         self.stacked_widget.setCurrentIndex(0)
         self.update_progress_header()
 
         self.comboBox_campus.setEnabled(True)
-        self.web_view.page().runJavaScript(
-            "if (typeof setMapClickable === 'function') { setMapClickable(true); }"
-        )
+        self.web_view.page().runJavaScript("if (typeof setMapClickable === 'function') { setMapClickable(true); }")
 
         logger.info("使用者已重置表單，回到步驟 1。")
 
@@ -752,11 +749,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
     def update_summary(self):
         w_name = WEEKDAYS_ZH[self.selected_date.weekday()] if self.selected_date else ""
-        date_str = (
-            f"{self.selected_date.strftime('%Y-%m-%d')} ({w_name})"
-            if self.selected_date
-            else ""
-        )
+        date_str = f"{self.selected_date.strftime('%Y-%m-%d')} ({w_name})" if self.selected_date else ""
         file_name = Path(self.image_path).name if self.image_path else "未選擇"
 
         chief_info_str = (
@@ -823,9 +816,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.selected_date = date(qdate.year(), qdate.month(), qdate.day())
         w_name = WEEKDAYS_ZH[self.selected_date.weekday()]
 
-        self.lbl_selected_date_info.setText(
-            f"✅ 已選擇施工日期：{self.selected_date.strftime('%Y-%m-%d')} ({w_name})"
-        )
+        self.lbl_selected_date_info.setText(f"✅ 已選擇施工日期：{self.selected_date.strftime('%Y-%m-%d')} ({w_name})")
         self.lbl_selected_date_info.setStyleSheet(
             "color: #198754; background-color: #d1e7dd; border: 1px solid #198754; "
             "padding: 8px 12px; border-radius: 6px; font-size: 14px; font-weight: bold;"
@@ -836,7 +827,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
         if path.lower().endswith((".jpg", ".png", ".pdf", ".jpeg")):
             self.image_path = path
             self.img_label.setText(f"已上傳: {Path(path).name}")
-            self.img_label.setStyleSheet("""
+            self.img_label.setStyleSheet(
+                """
                 QLabel {
                     border: 2px solid #198754;
                     border-radius: 6px;
@@ -845,22 +837,20 @@ class IntegratedApp(QtWidgets.QMainWindow):
                     font-weight: bold;
                     padding: 10px;
                 }
-            """)
+            """
+            )
             self.update_summary()
         else:
-            show_elder_warning(
-                self, "格式錯誤", "請上傳格式為 .jpg, .png 或 .pdf 的圖檔！"
-            )
+            show_elder_warning(self, "格式錯誤", "請上傳格式為 .jpg, .png 或 .pdf 的圖檔！")
 
     def choose_image(self):
         desktop_path = str(Path.home() / "Desktop")
-        path, _ = QFileDialog.getOpenFileName(
-            self, "選擇圖檔", desktop_path, "圖片 (*.jpg *.png *.pdf)"
-        )
+        path, _ = QFileDialog.getOpenFileName(self, "選擇圖檔", desktop_path, "圖片 (*.jpg *.png *.pdf)")
         if path:
             self.image_path = path
             self.img_label.setText(f"已上傳: {Path(path).name}")
-            self.img_label.setStyleSheet("""
+            self.img_label.setStyleSheet(
+                """
                 QLabel {
                     border: 2px solid #198754;
                     border-radius: 6px;
@@ -869,7 +859,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
                     font-weight: bold;
                     padding: 10px;
                 }
-            """)
+            """
+            )
             self.update_summary()
 
     def submit(self):
@@ -887,9 +878,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
             self.btn_next.setText("查詢資料中...")
             address = self.addr_entry.text().strip()
 
-            self.async_thread = AsyncProcessThread(
-                address, start_dt, duration, self.image_path
-            )
+            self.async_thread = AsyncProcessThread(address, start_dt, duration, self.image_path)
             self.async_thread.finished_signal.connect(self.on_info_processed)
             self.async_thread.error_signal.connect(self.on_error)
             self.async_thread.start()
@@ -908,7 +897,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
         confirm = show_elder_question(
             self,
             "資料確認送出",
-            textwrap.dedent(f"""
+            textwrap.dedent(
+                f"""
                 解析成功！
 
                 行政區：{apply_info.town} ({apply_info.village})
@@ -917,7 +907,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 截止時間：{apply_info.end_time.strftime('%Y-%m-%d %H:%M')}
 
                 請問是否要開啟自動填表？
-                """).strip(),
+                """
+            ).strip(),
         )
         if confirm:
             self.selenium_thread = SeleniumThread(apply_info)
@@ -937,7 +928,5 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.update_progress_header()
 
     def on_submission_success(self):
-        show_elder_warning(
-            self, "申辦完成", "表單已成功送達並完成日誌記錄！瀏覽器已自動關閉。"
-        )
+        show_elder_warning(self, "申辦完成", "表單已成功送達並完成日誌記錄！瀏覽器已自動關閉。")
         self.reset_form_completely(ask=False)

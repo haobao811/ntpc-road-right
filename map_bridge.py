@@ -33,9 +33,7 @@ class ReverseGeocodeThread(QThread):
                 village = data.get("address", {}).get("village")
                 if village:
                     address = address.replace(f" {village},", "")
-                address = "".join(
-                    [i.strip() for i in address.split(",")[::-1]]
-                ).removeprefix("臺灣")
+                address = "".join([i.strip() for i in address.split(",")[::-1]]).removeprefix("臺灣")
             else:
                 address = "查詢失敗"
         except Exception as e:
@@ -70,7 +68,5 @@ class MapBridge(QObject):
     @pyqtSlot(float, float)
     def open_street_view(self, lat: float, lng: float):
         """接收前端傳來的經緯度，開啟 Google 街景"""
-        url = (
-            f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lng}"
-        )
+        url = f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lng}"
         QDesktopServices.openUrl(QUrl(url))

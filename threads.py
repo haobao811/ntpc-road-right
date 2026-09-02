@@ -14,9 +14,7 @@ class AsyncProcessThread(QThread):
     finished_signal = pyqtSignal(object)
     error_signal = pyqtSignal(str)
 
-    def __init__(
-        self, address: str, start_dt: datetime, duration: timedelta, img_path: str
-    ):
+    def __init__(self, address: str, start_dt: datetime, duration: timedelta, img_path: str):
         super().__init__()
         self.address = address
         self.start_dt = start_dt

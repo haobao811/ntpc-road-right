@@ -10,8 +10,12 @@ from functools import lru_cache
 import pandas as pd
 import requests
 import urllib3
-from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
-                      wait_exponential)
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 from urllib3.exceptions import InsecureRequestWarning
 
 # 隱藏 InsecureRequestWarning
@@ -25,9 +29,7 @@ HTTP_SESSION = requests.Session()
 HTTP_SESSION.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
 
 # 新北市村里長 Open Data 下載網址
-NTPC_CHIEF_CSV_URL = (
-    "https://data.ntpc.gov.tw/api/datasets/d0070ef9-ae5c-423f-9f5c-e22aef21c33b/csv"
-)
+NTPC_CHIEF_CSV_URL = "https://data.ntpc.gov.tw/api/datasets/d0070ef9-ae5c-423f-9f5c-e22aef21c33b/csv"
 
 
 @retry(
@@ -122,9 +124,7 @@ def _load_village_chief_dataframe() -> pd.DataFrame:
     return df
 
 
-def get_village_chief_info(
-    village_name: str, district_name: str | None = None
-) -> dict[str, str]:
+def get_village_chief_info(village_name: str, district_name: str | None = None) -> dict[str, str]:
     """查詢村里長聯絡資訊 (附帶快取機制)
 
     :param village_name: 里名稱 (例如: "中和里")
@@ -144,14 +144,10 @@ def get_village_chief_info(
     filtered_df = df[df["village"] == village_name]
 
     if district_name and not filtered_df.empty:
-        filtered_df = filtered_df[
-            filtered_df["address"].str.contains(district_name, na=False)
-        ]
+        filtered_df = filtered_df[filtered_df["address"].str.contains(district_name, na=False)]
 
     if filtered_df.empty:
-        logger.warning(
-            "查無 %s (%s) 之里長資訊", village_name, district_name or "未指定區"
-        )
+        logger.warning("查無 %s (%s) 之里長資訊", village_name, district_name or "未指定區")
         return {}
 
     row = filtered_df.iloc[0]

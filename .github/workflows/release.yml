@@ -1,0 +1,38 @@
+name: Auto Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 當你推送開頭為 v 的 tag 時觸發，例如 v1.0.1
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest  # 如果你的程式需要打包成 Windows 執行檔
+
+    steps:
+    - name: 簽出程式碼 (Checkout code)
+      uses: actions/checkout@v4
+
+    - name: 設定 Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'  # 依你的專案 Python 版本調整
+        cache: 'pip'
+
+    - name: 安裝相依套件
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller  # 確保有安裝打包工具
+
+    - name: 使用 PyInstaller 打包
+      run: |
+        # 依照你的專案進入點調整，--onefile 代表打包成單一 exe
+        pyinstaller --onefile --noconsole main.py
+
+    - name: 建立 GitHub Release 並上傳檔案
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/main.exe  # 打包好的檔案路徑
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
