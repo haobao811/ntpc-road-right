@@ -28,7 +28,7 @@ jobs:
     - name: 使用 PyInstaller 打包 (資料夾模式)
       run: |
         # 注意這裡改成了 --onedir (或不加參數預設就是資料夾模式)
-        pyinstaller --onedir --noconsole main.py
+        pyinstaller --onedir --noconsole --collect-all selenium main.py
 
     - name: 安裝 Inno Setup
       run: |
