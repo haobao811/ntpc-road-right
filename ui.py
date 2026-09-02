@@ -617,10 +617,14 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
             if idx == 1:
                 self.comboBox_campus.setEnabled(True)
-                self.web_view.page().runJavaScript("if (typeof setMapClickable === 'function') { setMapClickable(true); }")
+                self.web_view.page().runJavaScript(
+                    "if (typeof setMapClickable === 'function') { setMapClickable(true); }"
+                )
             else:
                 self.comboBox_campus.setEnabled(False)
-                self.web_view.page().runJavaScript("if (typeof setMapClickable === 'function') { setMapClickable(false); }")
+                self.web_view.page().runJavaScript(
+                    "if (typeof setMapClickable === 'function') { setMapClickable(false); }"
+                )
 
         # 索引 3 代表步驟 4（確認送出頁面）
         if idx == 3:

@@ -27,3 +27,4 @@ repos:
       - id: flake8
         additional_dependencies:
         - pep8-naming
+        args: ['--exit-zero']

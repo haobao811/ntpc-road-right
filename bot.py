@@ -2,7 +2,6 @@
 Selenium 自動化表單填寫與 Tesseract OCR 驗證碼處理模組
 """
 
-from selenium.webdriver.support.ui import WebDriverWait
 import io
 import logging
 import time
