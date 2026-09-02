@@ -201,7 +201,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         # 頂部進度列與重置按鈕容器
         top_header_layout = QHBoxLayout()
-        self.lbl_progress = QLabel("步驟 1 / 5：上傳路權圖檔")
+        self.lbl_progress = QLabel("步驟 1 / 4：上傳路權圖檔")
         self.lbl_progress.setFont(QFont("Microsoft JhengHei", 16, QFont.Weight.Bold))
         self.lbl_progress.setStyleSheet("color: #0d6efd; background-color: #e7f1ff; padding: 10px; border-radius: 6px;")
 
@@ -232,7 +232,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         self.stacked_widget = QStackedWidget()
 
-        # 卡片 1: 路權圖檔（改為第一步驟）
+        # 卡片 1: 路權圖檔
         page1 = QWidget()
         p1_layout = QVBoxLayout(page1)
         lbl_p1 = QLabel("請上傳路權圖檔：")
@@ -303,16 +303,18 @@ class IntegratedApp(QtWidgets.QMainWindow):
         p2_layout.addStretch()
         self.stacked_widget.addWidget(page2)
 
-        # 卡片 3: 施工日期
+        # 卡片 3: 合併「日期、時間、時長」選擇
         page3 = QWidget()
         p3_layout = QVBoxLayout(page3)
-        lbl_p3 = QLabel("請在下方日曆選擇施工日期（前 8 天不可選擇）：")
+        lbl_p3 = QLabel("請選擇施工日期、開始時間與時長：")
         lbl_p3.setFont(QFont("Microsoft JhengHei", 13))
 
+        # 日曆元件
         self.calendar = QCalendarWidget()
         min_date = QDate.currentDate().addDays(9)
         self.calendar.setMinimumDate(min_date)
-        self.calendar.setFont(QFont("Microsoft JhengHei", 11))
+        self.calendar.setFont(QFont("Microsoft JhengHei", 10))
+        self.calendar.setMaximumHeight(240)  # 稍微限制高度以容納下方控制項
 
         self.calendar.setStyleSheet(
             """
@@ -325,16 +327,16 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 background-color: #0b3d91;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
-                min-height: 46px;
+                min-height: 38px;
             }
             QCalendarWidget QToolButton {
                 color: #ffc107;
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: bold;
                 background-color: transparent;
                 border: none;
-                margin: 4px;
-                padding: 4px 10px;
+                margin: 2px;
+                padding: 2px 8px;
                 border-radius: 4px;
             }
             QCalendarWidget QToolButton:hover {
@@ -348,15 +350,15 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 background-color: #e7f1ff;
                 color: #0a58ca;
                 font-weight: bold;
-                font-size: 14px;
-                padding: 6px;
+                font-size: 12px;
+                padding: 4px;
                 border: none;
                 border-bottom: 2px solid #b6d4fe;
             }
             QCalendarWidget QAbstractItemView:enabled {
                 background-color: #ffffff;
                 color: #212529;
-                font-size: 15px;
+                font-size: 13px;
                 font-weight: bold;
             }
             """
@@ -367,57 +369,72 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.calendar.currentPageChanged.connect(lambda: self.apply_disabled_dates_format(min_date))
 
         self.lbl_selected_date_info = QLabel("尚未選擇日期")
-        self.lbl_selected_date_info.setFont(QFont("Microsoft JhengHei", 13, QFont.Weight.Bold))
+        self.lbl_selected_date_info.setFont(QFont("Microsoft JhengHei", 11, QFont.Weight.Bold))
         self.lbl_selected_date_info.setStyleSheet("color: #6c757d;")
+
+        # 時間與時長選單配置
+        time_duration_layout = QHBoxLayout()
+
+        # 開始時間組合 (時 + 分)
+        start_time_layout = QVBoxLayout()
+        lbl_time = QLabel("開始時間：")
+        lbl_time.setFont(QFont("Microsoft JhengHei", 11))
+
+        h_layout = QHBoxLayout()
+        self.hour_cb = QComboBox()
+        self.hour_cb.setFont(QFont("Microsoft JhengHei", 11))
+        hour_options = [format_hour_item(i) for i in range(24)]
+        self.hour_cb.addItems(["-- 請選擇 --"] + hour_options)
+        self.hour_cb.currentIndexChanged.connect(self.update_duration_options)
+
+        self.minute_cb = QComboBox()
+        self.minute_cb.setFont(QFont("Microsoft JhengHei", 11))
+        self.minute_cb.addItems(["00 分", "30 分"])
+        self.minute_cb.currentIndexChanged.connect(self.update_duration_options)
+
+        h_layout.addWidget(self.hour_cb)
+        h_layout.addWidget(self.minute_cb)
+        start_time_layout.addWidget(lbl_time)
+        start_time_layout.addLayout(h_layout)
+
+        # 施工時長組合
+        duration_layout_box = QVBoxLayout()
+        lbl_duration = QLabel("施工時長：")
+        lbl_duration.setFont(QFont("Microsoft JhengHei", 11))
+
+        self.duration_cb = QComboBox()
+        self.duration_cb.setFont(QFont("Microsoft JhengHei", 11))
+        self.duration_cb.addItem("-- 請選擇時長 --")
+
+        duration_layout_box.addWidget(lbl_duration)
+        duration_layout_box.addWidget(self.duration_cb)
+
+        time_duration_layout.addLayout(start_time_layout, stretch=2)
+        time_duration_layout.addLayout(duration_layout_box, stretch=3)
+
         p3_layout.addWidget(lbl_p3)
         p3_layout.addWidget(self.calendar)
         p3_layout.addWidget(self.lbl_selected_date_info)
+        p3_layout.addLayout(time_duration_layout)
         p3_layout.addStretch()
         self.stacked_widget.addWidget(page3)
 
-        # 卡片 4: 開始時間
+        # 卡片 4: 確認送出頁面 (原本的卡片 5)
         page4 = QWidget()
         p4_layout = QVBoxLayout(page4)
-        lbl_p4 = QLabel("請選擇施工開始時間：")
+        lbl_p4 = QLabel("請確認以下申請內容是否正確：")
         lbl_p4.setFont(QFont("Microsoft JhengHei", 13))
-        time_layout = QHBoxLayout()
-        self.hour_cb = QComboBox()
-        self.hour_cb.setFont(QFont("Microsoft JhengHei", 13))
-        hour_options = [format_hour_item(i) for i in range(24)]
-        self.hour_cb.addItems(["-- 請選擇開始時間 --"] + hour_options)
-
-        self.minute_cb = QComboBox()
-        self.minute_cb.setFont(QFont("Microsoft JhengHei", 13))
-        self.minute_cb.addItems(["00 分", "30 分"])
-
-        time_layout.addWidget(self.hour_cb)
-        time_layout.addWidget(self.minute_cb)
-        p4_layout.addWidget(lbl_p4)
-        p4_layout.addLayout(time_layout)
-        p4_layout.addStretch()
-        self.stacked_widget.addWidget(page4)
-
-        # 卡片 5: 施工時長與確認送出
-        page5 = QWidget()
-        p5_layout = QVBoxLayout(page5)
-        lbl_p5 = QLabel("請選擇施工時長並確認申請內容：")
-        lbl_p5.setFont(QFont("Microsoft JhengHei", 13))
-
-        self.duration_cb = QComboBox()
-        self.duration_cb.setFont(QFont("Microsoft JhengHei", 13))
-        self.duration_cb.addItem("-- 請選擇施工時長 --")
 
         self.summary_label = QLabel()
         self.summary_label.setFont(QFont("Microsoft JhengHei", 11))
         self.summary_label.setStyleSheet(
-            "background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; border-radius: 6px;"
+            "background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px;"
         )
 
-        p5_layout.addWidget(lbl_p5)
-        p5_layout.addWidget(self.duration_cb)
-        p5_layout.addWidget(self.summary_label)
-        p5_layout.addStretch()
-        self.stacked_widget.addWidget(page5)
+        p4_layout.addWidget(lbl_p4)
+        p4_layout.addWidget(self.summary_label)
+        p4_layout.addStretch()
+        self.stacked_widget.addWidget(page4)
 
         left_layout.addWidget(self.stacked_widget, stretch=1)
 
@@ -439,19 +456,16 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         root_layout.addWidget(left_container, stretch=4)
 
-       # ------------------- 右側：地圖與空白佔位切換容器 -------------------
+        # ------------------- 右側：地圖與空白佔位切換容器 -------------------
         self.map_container = QWidget()
         map_container_layout = QVBoxLayout(self.map_container)
         map_container_layout.setContentsMargins(5, 5, 5, 5)
 
-        # 建立右側的 StackedWidget 來切換「空白佔位」與「地圖」
         self.right_stack = QStackedWidget()
 
-        # 分頁 0：空白佔位面板（維持右側版面比例，但不渲染地圖）
         self.empty_page = QWidget()
         self.right_stack.addWidget(self.empty_page)
 
-        # 分頁 1：原本的地圖與快速跳轉面板
         map_page = QWidget()
         map_layout = QVBoxLayout(map_page)
         map_layout.setContentsMargins(0, 0, 0, 0)
@@ -465,7 +479,6 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.comboBox_campus.addItems(list(LOC_COORDINATES.keys()))
         self.comboBox_campus.currentIndexChanged.connect(self.which_campus)
         combo_layout.addWidget(self.comboBox_campus)
-        # map_layout.addLayout(combo_layout) # 如果原本有啟用 combo_layout 可依需求放回
 
         self.web_view = QWebEngineView()
         self.bridge = MapBridge()
@@ -484,7 +497,6 @@ class IntegratedApp(QtWidgets.QMainWindow):
         map_container_layout.addWidget(self.right_stack)
         root_layout.addWidget(self.map_container, stretch=6)
 
-        # 初始狀態（步驟 1：上傳路權圖），顯示空白佔位頁面
         self.right_stack.setCurrentIndex(0)
 
     def apply_disabled_dates_format(self, min_date: QDate):
@@ -552,7 +564,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.is_parsing_address = False
         self.hide_loading()
         logger.info(f"背景解析里長成功: {apply_info.town} {apply_info.village} 里長: {apply_info.chief_name}")
-        if self.stacked_widget.currentIndex() == 4:
+        if self.stacked_widget.currentIndex() == 3:  # 步驟 4 (索引 3) 為確認頁面
             self.update_summary()
 
     def on_bg_info_error(self, msg: str):
@@ -563,24 +575,20 @@ class IntegratedApp(QtWidgets.QMainWindow):
     def update_progress_header(self):
         idx = self.stacked_widget.currentIndex()
         steps = [
-            "步驟 1 / 5：上傳路權圖檔",
-            "步驟 2 / 5：輸入施工地址",
-            "步驟 3 / 5：選擇施工日期",
-            "步驟 4 / 5：選擇開始時間",
-            "步驟 5 / 5：選擇施工時長與確認送出",
+            "步驟 1 / 4：上傳路權圖檔",
+            "步驟 2 / 4：輸入施工地址",
+            "步驟 3 / 4：選擇施工日期、時間與時長",
+            "步驟 4 / 4：確認申請內容並送出",
         ]
         self.lbl_progress.setText(steps[idx])
         self.btn_prev.setEnabled(idx > 0)
 
         # 控制右側顯示空白佔位或地圖
         if idx == 0:
-            # 步驟 1：切換到空白頁面（佔住右側版面比例，不渲染地圖）
             self.right_stack.setCurrentIndex(0)
         else:
-            # 步驟 2 之後：切換到地圖頁面
             self.right_stack.setCurrentIndex(1)
 
-            # 只有在「步驟 2：輸入施工地址」（index 1）時才允許地圖點擊與跳轉
             if idx == 1:
                 self.comboBox_campus.setEnabled(True)
                 self.web_view.page().runJavaScript("if (typeof setMapClickable === 'function') { setMapClickable(true); }")
@@ -588,7 +596,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 self.comboBox_campus.setEnabled(False)
                 self.web_view.page().runJavaScript("if (typeof setMapClickable === 'function') { setMapClickable(false); }")
 
-        if idx == 4:
+        # 索引 3 代表步驟 4（確認送出頁面）
+        if idx == 3:
             self.btn_next.setText("🚀 送出自動填表")
             self.btn_next.setStyleSheet("background-color: #198754; color: white; padding: 8px; font-weight: bold;")
             self.update_summary()
@@ -597,9 +606,10 @@ class IntegratedApp(QtWidgets.QMainWindow):
             self.btn_next.setStyleSheet("background-color: #0d6efd; color: white; padding: 8px; font-weight: bold;")
 
     def update_duration_options(self):
-        """根據已選擇的開始時間，動態計算並更新施工時長選項，後方顯示 (結束: mm-dd H:M)"""
+        """根據已選擇的開始時間，動態計算並更新施工時長選項"""
+        current_duration_selection = self.duration_cb.currentText()
         self.duration_cb.clear()
-        self.duration_cb.addItem("-- 請選擇施工時長 --")
+        self.duration_cb.addItem("-- 請選擇時長 --")
 
         if not self.selected_date:
             return
@@ -626,7 +636,13 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 break
 
             end_str = end_dt.strftime("%m-%d %H:%M")
-            self.duration_cb.addItem(f"{i} 小時 【結束: {end_str}】")
+            item_text = f"{i} 小時 【結束: {end_str}】"
+            self.duration_cb.addItem(item_text)
+
+        # 嘗試保留原先選中的時長
+        idx = self.duration_cb.findText(current_duration_selection)
+        if idx >= 0:
+            self.duration_cb.setCurrentIndex(idx)
 
     def validate_current_step(self) -> bool:
         idx = self.stacked_widget.currentIndex()
@@ -640,14 +656,13 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 show_elder_warning(self, "提醒", "請輸入包含『新北市』的完整地址！")
                 return False
         elif idx == 2:
+            # 驗證合併後的步驟 3：日期、時間、時長是否完整填寫
             if not self.selected_date:
                 show_elder_warning(self, "提醒", "請在日曆上點選施工日期！")
                 return False
-        elif idx == 3:
             if self.hour_cb.currentIndex() == 0:
                 show_elder_warning(self, "提醒", "請選擇開始時間！")
                 return False
-        elif idx == 4:
             if self.duration_cb.currentIndex() == 0:
                 show_elder_warning(self, "提醒", "請選擇施工時長！")
                 return False
@@ -685,16 +700,12 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         idx = self.stacked_widget.currentIndex()
 
-        # 從地址頁面 (idx == 1) 前往日期頁面 (idx == 2) 時觸發背景解析
+        # 從地址頁面 (idx == 1) 前往合併日期頁面 (idx == 2) 時觸發背景解析
         if idx == 1:
             if self.parsed_apply_info is None and not self.is_parsing_address:
                 self.start_background_address_parse()
 
-        # 當準備從開始時間頁面 (idx == 3) 前往施工時長頁面 (idx == 4) 時，動態更新時長選單
-        if idx == 3:
-            self.update_duration_options()
-
-        if idx < 4:
+        if idx < 3:
             self.stacked_widget.setCurrentIndex(idx + 1)
             self.update_progress_header()
         else:
@@ -729,7 +740,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.hour_cb.setCurrentIndex(0)
         self.minute_cb.setCurrentIndex(0)
         self.duration_cb.clear()
-        self.duration_cb.addItem("-- 請選擇施工時長 --")
+        self.duration_cb.addItem("-- 請選擇時長 --")
 
         self.img_label.setText("📁 點擊左側按鈕 或 將圖檔拖曳至此")
         self.img_label.setStyleSheet(
@@ -849,8 +860,11 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.lbl_selected_date_info.setText(f"✅ 已選擇施工日期：{self.selected_date.strftime('%Y-%m-%d')} ({w_name})")
         self.lbl_selected_date_info.setStyleSheet(
             "color: #198754; background-color: #d1e7dd; border: 1px solid #198754; "
-            "padding: 8px 12px; border-radius: 6px; font-size: 14px; font-weight: bold;"
+            "padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: bold;"
         )
+
+        # 日期改變時連動更新時長選項
+        self.update_duration_options()
 
     def process_selected_image(self, path: str):
         """處理選定或拖曳的圖檔，並檢查檔名是否包含『新北市』以自動填入地址"""
@@ -871,12 +885,9 @@ class IntegratedApp(QtWidgets.QMainWindow):
             """
             )
 
-            # 檢查檔案名稱是否包含「新北市」，若是則自動帶入作為預設施工地址
             if "新北市" in file_name:
-                # 移除副檔名作為候選地址
                 clean_addr = Path(file_name).stem
                 self.addr_entry.setText(clean_addr)
-                # 同步觸發地址的經緯度查詢與地圖置中
                 self.on_address_changed()
                 logger.info(f"偵測到檔案名稱包含『新北市』，已自動設為預設施工地址: {clean_addr}")
 
@@ -885,7 +896,6 @@ class IntegratedApp(QtWidgets.QMainWindow):
             show_elder_warning(self, "格式錯誤", "請上傳格式為 .jpg, .png 或 .pdf 的圖檔！")
 
     def handle_dropped_image(self, path: str):
-        """處理透過拖曳進來的檔案"""
         self.process_selected_image(path)
 
     def choose_image(self):
