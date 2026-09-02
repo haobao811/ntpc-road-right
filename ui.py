@@ -898,7 +898,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
             )
 
             if "新北市" in file_name:
-                clean_addr = Path(file_name).stem
+                stem_name = Path(file_name).stem
+                clean_addr = re.sub(r"\(\d+\)$", "", stem_name).strip()
                 self.addr_entry.setText(clean_addr)
                 self.on_address_changed()
                 logger.info(f"偵測到檔案名稱包含『新北市』，已自動設為預設施工地址: {clean_addr}")
