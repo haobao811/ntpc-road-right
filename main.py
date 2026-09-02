@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from ui import IntegratedApp
 
 # 假設這是本地當前版本
-CURRENT_VERSION = "v1.1.0"
+CURRENT_VERSION = "v1.1.1"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -84,14 +84,26 @@ def check_and_update():
         logging.error(f"檢查更新時發生錯誤: {e}")
 
 
+def auto_install_tesseract():
+    """當偵測到系統未安裝 Tesseract 時，嘗試自動呼叫系統指令進行靜默安裝"""
+    logging.info("嘗試自動安裝 Tesseract-OCR")
+    try:
+        # 透過 winget 自動安裝
+        cmd = "winget install UB-Mannheim.TesseractOCR --accept-package-agreements --accept-source-agreements"
+        subprocess.check_call(cmd, shell=True)
+    except Exception as e:
+        logging.error(f"自動安裝 Tesseract 失敗: {e}")
+        return False
+
+
 if __name__ == "__main__":
     # 注意：Qt 應用程式通常需要先初始化 QApplication 才能安全建立 QMessageBox
-    # 這裡我們提前初始化以支援 check_and_update 裡的提示框
     app = QApplication(sys.argv)
 
+    # 1. 檢查 GitHub 版本更新
     check_and_update()
 
-    # 檢查是否安裝 Tesseract OCR
+    # 2. 檢查是否安裝 Tesseract OCR，若無則提供提示或嘗試自動安裝
     try:
         default_install_dir = r"C:\Program Files\Tesseract-OCR"
         tesseract_exe = os.path.join(default_install_dir, "tesseract.exe")
@@ -101,13 +113,28 @@ if __name__ == "__main__":
         pytesseract.get_tesseract_version()
     except pytesseract.TesseractNotFoundError:
         msg = QMessageBox()
-        msg.setIcon(QMessageBox.Icon.Critical)
+        msg.setIcon(QMessageBox.Icon.Warning)
         msg.setWindowTitle("未安裝 Tesseract OCR")
-        msg.setText("系統偵測尚未安裝 Tesseract OCR 或未將其加入環境變數。\n請先安裝後再重新啟動程式！")
-        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-        msg.exec()
-        sys.exit(1)
+        msg.setText("系統偵測尚未安裝 Tesseract OCR。\n是否要讓程式嘗試自動幫您安裝？")
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
 
+        reply = msg.exec()
+
+        if reply == QMessageBox.StandardButton.Yes:
+            success = auto_install_tesseract()
+            if success:
+                QMessageBox.information(None, "安裝成功", "Tesseract-OCR 已安裝完成，將繼續啟動應用程式。")
+                # 重新指定路徑
+                if os.path.isfile(tesseract_exe):
+                    pytesseract.pytesseract.tesseract_cmd = tesseract_exe
+            else:
+                QMessageBox.critical(None, "安裝失敗", "自動安裝失敗，請手動安裝 Tesseract OCR 後再重新啟動！")
+                sys.exit(1)
+        else:
+            sys.exit(1)
+
+    # 3. 啟動主畫面
     app_font = QFont("Microsoft JhengHei", 16)
     app.setFont(app_font)
 

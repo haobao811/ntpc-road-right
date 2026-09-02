@@ -1,7 +1,7 @@
 ﻿[Setup]
 AppId={{5BA9828E-3B6A-469A-B3DE-776967A24E02}
 AppName=NTPC Road Right
-AppVersion=1.1.0
+AppVersion=1.1.1
 DefaultDirName={autopf}\NTPC Road Right
 DefaultGroupName=NTPC Road Right
 OutputDir=output
@@ -11,7 +11,7 @@ Compression=lzma
 SolidCompression=yes
 
 [Languages]
-Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+Name: "chinesetraditional"; MessagesFile: "languages\ChineseTraditional.isl"
 
 [Files]
 ; 這裡改成對應英文資料夾名稱 路權申請
