@@ -1,7 +1,7 @@
 """
 PyQt 主視窗與 UI 互動邏輯
 修正 QCalendarWidget 禁用日期（disabled date）視覺無區隔，
-並徹底解決背景線程傳回的 apply_info 日期被重置為當天的問題。
+並將圖檔選擇按鈕移除，改由點擊 DragDropLabel 直接啟動選檔。
 """
 
 import logging
@@ -40,14 +40,16 @@ logger = logging.getLogger(__name__)
 
 
 class DragDropLabel(QLabel):
-    """自訂支援拖曳檔案進來的 QLabel 元件"""
+    """自訂支援點擊與拖曳檔案進來的 QLabel 元件"""
 
     file_dropped = pyqtSignal(str)
+    clicked = pyqtSignal()
 
     def __init__(self, text=""):
         super().__init__(text)
         self.setAcceptDrops(True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -60,6 +62,11 @@ class DragDropLabel(QLabel):
         if urls:
             file_path = urls[0].toLocalFile()
             self.file_dropped.emit(file_path)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
 
 
 class GeocodeThread(QThread):
@@ -235,34 +242,32 @@ class IntegratedApp(QtWidgets.QMainWindow):
         # 卡片 1: 路權圖檔
         page1 = QWidget()
         p1_layout = QVBoxLayout(page1)
-        lbl_p1 = QLabel("請上傳路權圖檔：")
+        lbl_p1 = QLabel("請點擊下方區域或將圖檔拖曳至此：")
         lbl_p1.setFont(QFont("Microsoft JhengHei", 13))
 
         img_layout = QHBoxLayout()
-        self.btn_img = QPushButton("📁 選擇圖檔")
-        self.btn_img.setFont(QFont("Microsoft JhengHei", 12))
-        self.btn_img.clicked.connect(self.choose_image)
-
-        self.img_label = DragDropLabel("📁 點擊左側按鈕 或 將圖檔拖曳至此")
-        self.img_label.setFont(QFont("Microsoft JhengHei", 12))
+        self.img_label = DragDropLabel("📁 點擊此處選擇圖檔 或 將檔案拖曳至此")
+        self.img_label.setFont(QFont("Microsoft JhengHei", 13))
         self.img_label.setStyleSheet(
             """
             QLabel {
                 border: 2px dashed #0d6efd;
-                border-radius: 6px;
+                border-radius: 8px;
                 background-color: #f8f9fa;
                 color: #6c757d;
-                padding: 10px;
+                padding: 40px;
+                min-height: 200px;
             }
             QLabel:hover {
                 background-color: #e9ecef;
                 color: #495057;
+                border-color: #0b5ed7;
             }
         """
         )
         self.img_label.file_dropped.connect(self.handle_dropped_image)
+        self.img_label.clicked.connect(self.choose_image)
 
-        img_layout.addWidget(self.btn_img)
         img_layout.addWidget(self.img_label, stretch=1)
 
         p1_layout.addWidget(lbl_p1)
@@ -742,15 +747,21 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.duration_cb.clear()
         self.duration_cb.addItem("-- 請選擇時長 --")
 
-        self.img_label.setText("📁 點擊左側按鈕 或 將圖檔拖曳至此")
+        self.img_label.setText("📁 點擊此處選擇圖檔 或 將檔案拖曳至此")
         self.img_label.setStyleSheet(
             """
             QLabel {
                 border: 2px dashed #0d6efd;
-                border-radius: 6px;
+                border-radius: 8px;
                 background-color: #f8f9fa;
                 color: #6c757d;
-                padding: 10px;
+                padding: 40px;
+                min-height: 200px;
+            }
+            QLabel:hover {
+                background-color: #e9ecef;
+                color: #495057;
+                border-color: #0b5ed7;
             }
         """
         )
@@ -876,11 +887,12 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 """
                 QLabel {
                     border: 2px solid #198754;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     background-color: #d1e7dd;
                     color: #155724;
                     font-weight: bold;
-                    padding: 10px;
+                    padding: 40px;
+                    min-height: 200px;
                 }
             """
             )
