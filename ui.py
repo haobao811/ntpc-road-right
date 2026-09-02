@@ -399,8 +399,8 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.minute_cb.addItems(["00 分", "30 分"])
         self.minute_cb.currentIndexChanged.connect(self.update_duration_options)
 
-        h_layout.addWidget(self.hour_cb, stretch=2)
-        h_layout.addWidget(self.minute_cb, stretch=1)
+        h_layout.addWidget(self.hour_cb, stretch=3)
+        h_layout.addWidget(self.minute_cb, stretch=2)
         start_time_layout.addWidget(lbl_time)
         start_time_layout.addLayout(h_layout)
 
@@ -455,8 +455,26 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         self.btn_next = QPushButton("下一步 ➡️")
         self.btn_next.setFont(QFont("Microsoft JhengHei", 13, QFont.Weight.Bold))
-        self.btn_next.setStyleSheet("background-color: #0d6efd; color: white; padding: 8px;")
-        self.btn_next.clicked.connect(self.go_next)
+        # 加入 hover 與 pressed 樣式，點擊時會自動變深並微幅下沉
+        self.btn_next.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #0d6efd;
+                color: white;
+                padding: 8px;
+                border-radius: 6px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #0b5ed7;
+            }
+            QPushButton:pressed {
+                background-color: #052c65;
+                padding-top: 10px;
+            }
+        """
+        )
+        self.btn_next.clicked.connect(self.go_next)  # 直接接回原本的 go_next
 
         nav_layout.addWidget(self.btn_prev)
         nav_layout.addWidget(self.btn_next)
@@ -503,7 +521,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.right_stack.addWidget(map_page)
 
         map_container_layout.addWidget(self.right_stack)
-        root_layout.addWidget(self.map_container, stretch=6)
+        root_layout.addWidget(self.map_container, stretch=5)
 
         self.right_stack.setCurrentIndex(0)
 
@@ -585,7 +603,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         steps = [
             "步驟 1 / 4：上傳路權圖檔",
             "步驟 2 / 4：輸入施工地址",
-            "步驟 3 / 4：選擇施工日期、時間與時長",
+            "步驟 3 / 4：選擇施工區間",
             "步驟 4 / 4：確認申請內容並送出",
         ]
         self.lbl_progress.setText(steps[idx])
@@ -607,11 +625,47 @@ class IntegratedApp(QtWidgets.QMainWindow):
         # 索引 3 代表步驟 4（確認送出頁面）
         if idx == 3:
             self.btn_next.setText("🚀 送出自動填表")
-            self.btn_next.setStyleSheet("background-color: #198754; color: white; padding: 8px; font-weight: bold;")
+            self.btn_next.setStyleSheet(
+                """
+                QPushButton {
+                    background-color: #198754;
+                    color: white;
+                    padding: 8px;
+                    font-weight: bold;
+                    border-radius: 6px;
+                    border: none;
+                }
+                QPushButton:hover {
+                    background-color: #157347;
+                }
+                QPushButton:pressed {
+                    background-color: #0f5132;
+                    padding-top: 10px;
+                }
+            """
+            )
             self.update_summary()
         else:
             self.btn_next.setText("下一步 ➡️")
-            self.btn_next.setStyleSheet("background-color: #0d6efd; color: white; padding: 8px; font-weight: bold;")
+            self.btn_next.setStyleSheet(
+                """
+                QPushButton {
+                    background-color: #0d6efd;
+                    color: white;
+                    padding: 8px;
+                    font-weight: bold;
+                    border-radius: 6px;
+                    border: none;
+                }
+                QPushButton:hover {
+                    background-color: #0b5ed7;
+                }
+                QPushButton:pressed {
+                    background-color: #052c65;
+                    padding-top: 10px;
+                }
+            """
+            )
 
     def update_duration_options(self):
         """根據已選擇的開始時間，動態計算並更新施工時長選項"""
