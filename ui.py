@@ -6,7 +6,6 @@ PyQt 主視窗與 UI 互動邏輯
 
 import logging
 import re
-import textwrap
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -379,6 +378,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         # 時間與時長選單配置
         time_duration_layout = QHBoxLayout()
+        time_duration_layout.setContentsMargins(0, 10, 0, 10)  # 上下增加留白
 
         # 開始時間組合 (時 + 分)
         start_time_layout = QVBoxLayout()
@@ -388,17 +388,19 @@ class IntegratedApp(QtWidgets.QMainWindow):
         h_layout = QHBoxLayout()
         self.hour_cb = QComboBox()
         self.hour_cb.setFont(QFont("Microsoft JhengHei", 11))
+        self.hour_cb.setStyleSheet("padding: 4px;")  # 讓下拉選單內部有空間
         hour_options = [format_hour_item(i) for i in range(24)]
         self.hour_cb.addItems(["-- 請選擇 --"] + hour_options)
         self.hour_cb.currentIndexChanged.connect(self.update_duration_options)
 
         self.minute_cb = QComboBox()
         self.minute_cb.setFont(QFont("Microsoft JhengHei", 11))
+        self.minute_cb.setStyleSheet("padding: 4px;")
         self.minute_cb.addItems(["00 分", "30 分"])
         self.minute_cb.currentIndexChanged.connect(self.update_duration_options)
 
-        h_layout.addWidget(self.hour_cb)
-        h_layout.addWidget(self.minute_cb)
+        h_layout.addWidget(self.hour_cb, stretch=2)
+        h_layout.addWidget(self.minute_cb, stretch=1)
         start_time_layout.addWidget(lbl_time)
         start_time_layout.addLayout(h_layout)
 
@@ -409,13 +411,14 @@ class IntegratedApp(QtWidgets.QMainWindow):
 
         self.duration_cb = QComboBox()
         self.duration_cb.setFont(QFont("Microsoft JhengHei", 11))
+        self.duration_cb.setStyleSheet("padding: 4px;")
         self.duration_cb.addItem("-- 請選擇時長 --")
 
         duration_layout_box.addWidget(lbl_duration)
         duration_layout_box.addWidget(self.duration_cb)
 
-        time_duration_layout.addLayout(start_time_layout, stretch=2)
-        time_duration_layout.addLayout(duration_layout_box, stretch=3)
+        time_duration_layout.addLayout(start_time_layout, stretch=1)
+        time_duration_layout.addLayout(duration_layout_box, stretch=1)
 
         p3_layout.addWidget(lbl_p3)
         p3_layout.addWidget(self.calendar)
