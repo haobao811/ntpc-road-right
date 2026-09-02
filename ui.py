@@ -935,22 +935,23 @@ class IntegratedApp(QtWidgets.QMainWindow):
         if self.image_path:
             apply_info.image_path = self.image_path
 
-        confirm = show_elder_question(
-            self,
-            "資料確認送出",
-            textwrap.dedent(
-                f"""
-                解析成功！
+        confirm = True
+        # confirm = show_elder_question(
+        #     self,
+        #     "資料確認送出",
+        #     textwrap.dedent(
+        #         f"""
+        #         解析成功！
 
-                行政區：{apply_info.town} ({apply_info.village})
-                里長：{apply_info.chief_name}
-                開始時間：{apply_info.start_datetime.strftime('%Y-%m-%d %H:%M')}
-                截止時間：{apply_info.end_time.strftime('%Y-%m-%d %H:%M')}
+        #         行政區：{apply_info.town} ({apply_info.village})
+        #         里長：{apply_info.chief_name}
+        #         開始時間：{apply_info.start_datetime.strftime('%Y-%m-%d %H:%M')}
+        #         截止時間：{apply_info.end_time.strftime('%Y-%m-%d %H:%M')}
 
-                請問是否要開啟自動填表？
-                """
-            ).strip(),
-        )
+        #         請問是否要開啟自動填表？
+        #         """
+        #     ).strip(),
+        # )
         if confirm:
             self.selenium_thread = SeleniumThread(apply_info)
             self.selenium_thread.error_signal.connect(self.on_error)
