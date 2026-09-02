@@ -2,6 +2,7 @@
 Selenium 自動化表單填寫與 Tesseract OCR 驗證碼處理模組
 """
 
+from selenium.webdriver.support.ui import WebDriverWait
 import io
 import logging
 import time
@@ -12,11 +13,9 @@ from bs4 import BeautifulSoup
 from PIL import Image
 from selenium import webdriver
 from selenium.common.exceptions import NoAlertPresentException
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
-from webdriver_manager.chrome import ChromeDriverManager
 
 from config import STATIC_USER_INFO
 from haishan import get_police_precinct
@@ -27,8 +26,7 @@ logger = logging.getLogger(__name__)
 
 class AutoFillForm:
     def __init__(self):
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service)
+        self.driver = webdriver.Chrome()
         self.wait = WebDriverWait(self.driver, 15)
 
     def auto_fill_form(self, apply_info: DynamicApplyInfo):

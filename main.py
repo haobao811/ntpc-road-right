@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from ui import IntegratedApp
 
 # 假設這是本地當前版本
-CURRENT_VERSION = "v1.0.5"
+CURRENT_VERSION = "v1.0.6"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -42,7 +42,7 @@ def check_and_update():
                     "發現新版本",
                     f"偵測到新版本 {latest_version}（目前版本：{CURRENT_VERSION}）\n是否要立即下載並更新？",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.Yes
+                    QMessageBox.StandardButton.Yes,
                 )
 
                 if reply != QMessageBox.StandardButton.Yes:
