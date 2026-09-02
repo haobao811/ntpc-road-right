@@ -33,7 +33,7 @@ from config import HTML_CONTENT, LOC_COORDINATES, WEEKDAYS_ZH
 from gis import get_coordinates_by_address
 from map_bridge import MapBridge
 from models import DynamicApplyInfo
-from threads import AsyncProcessThread, SeleniumThread
+from threads import AsyncProcessThread, PreloadChiefDataThread, SeleniumThread
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +196,10 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.is_parsing_address = False
 
         self.init_ui()
+
+        # 🚀 程式一開啟，立刻在背景非同步預載里長資料
+        self.preload_thread = PreloadChiefDataThread()
+        self.preload_thread.start()
 
     def init_ui(self):
         main_widget = QWidget()
@@ -471,6 +475,11 @@ class IntegratedApp(QtWidgets.QMainWindow):
             QPushButton:pressed {
                 background-color: #052c65;
                 padding-top: 10px;
+            }
+            QPushButton:disabled {
+                background-color: #e9ecef;
+                color: #adb5bd;
+                border: 1px solid #ced4da;
             }
         """
         )

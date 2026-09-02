@@ -2,12 +2,32 @@
 PyQt QThread 工作執行緒，負責耗時工作與 GUI 解耦
 """
 
+import logging
 from datetime import datetime, timedelta
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from bot import AutoFillForm
+from gis import _load_village_chief_dataframe
 from models import DynamicApplyInfo
+
+logger = logging.getLogger(__name__)
+
+
+class PreloadChiefDataThread(QThread):
+    """背景預載里長 CSV 資料的執行緒"""
+
+    finished_signal = pyqtSignal()
+
+    def run(self):
+        try:
+            # 呼叫你原本帶有 @lru_cache 的函式進行快取載入
+            _load_village_chief_dataframe()
+            logger.info("背景預載里長 CSV 資料成功！")
+        except Exception as e:
+            logger.warning(f"背景預載里長 CSV 資料失敗: {e}")
+        finally:
+            self.finished_signal.emit()
 
 
 class AsyncProcessThread(QThread):
