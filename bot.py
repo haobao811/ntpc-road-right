@@ -27,10 +27,10 @@ class AutoFillForm:
     def __init__(self):
         self.driver = webdriver.Chrome()
         self.wait = WebDriverWait(self.driver, 15)
-        self.log = ''
+        self.log = ""
         self.apply_info = None
 
-    def auto_fill_form(self, apply_info: DynamicApplyInfo):
+    def auto_fill_form(self, apply_info: DynamicApplyInfo, ask_user=True):
         try:
             self.apply_info = apply_info
             self.driver.get("https://service.ntpc.gov.tw/eservice/Ac125024.action")
@@ -107,8 +107,13 @@ class AutoFillForm:
             self.flashing_submit_button()
             self.scroll_to_table()
 
-            self.driver.execute_script("window.alert('自動填入完成，請確認資料正確後點選下一步！');")
-            self._wait_for_user_to_dismiss_alert()
+            if ask_user:
+                self.driver.execute_script("window.alert('自動填入完成，請確認資料正確後點選下一步！');")
+                self._wait_for_user_to_dismiss_alert()
+            else:
+                time.sleep(3)
+                self.click_submit()
+
             if self.parse_completion_and_log():
                 self.close()
                 return True
@@ -155,22 +160,24 @@ class AutoFillForm:
         """
 
         # 3. 確保樣式有被確實注入
-        self.driver.execute_script(
-            f"""
+        self.driver.execute_script(f"""
             if (!document.getElementById('selenium-flash-style')) {{
                 let style = document.createElement('style');
                 style.id = 'selenium-flash-style';
                 style.innerHTML = `{flash_css}`;
                 document.head.appendChild(style);
             }}
-        """
-        )
+        """)
 
         # 4. 加上 class
         self.driver.execute_script("arguments[0].classList.add('selenium-flashing-force');", next_btn)
 
     def click_save(self):
         self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@data-ng-click='doSave(ac125024);']"))).click()
+
+    def click_submit(self):
+        logger.info("送出申請")
+        self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@data-ng-click='doSend(ac125024);']"))).click()
 
     def solve_and_fill_captcha(self, refresh: bool = False):
         img_element = self.wait.until(EC.visibility_of_element_located((By.ID, "authImage")))

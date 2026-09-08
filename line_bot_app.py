@@ -267,7 +267,7 @@ def run_selenium_background_task(user_id, address, start_dt, duration, image_pat
         )
 
         bot = AutoFillForm()
-        success = bot.auto_fill_form(apply_info)
+        success = bot.auto_fill_form(apply_info, ask_user=False)
         bot.close()
 
         # 計算結束時間與總時長（小時）
