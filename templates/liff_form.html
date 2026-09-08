@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新北市路權申請填寫</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f9f9f9; color: #333; }
+        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select, button { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+
+        /* 讓日期輸入框整塊都可以點擊觸發彈出曆法 */
+        input[type="date"] {
+            cursor: pointer;
+            position: relative;
+        }
+
+        /* 顯示施工地址的樣式 */
+        .address-box { padding: 10px; background: #f0f4f8; border-radius: 5px; font-weight: bold; color: #0066cc; border: 1px solid #d0e1f9; word-break: break-all; }
+
+        /* 確認送出按鈕 (綠色) */
+        .btn-submit { background: #06C755; color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-submit:active { background: #05b34c; }
+
+        /* 取消按鈕 (灰色/紅色系) */
+        .btn-cancel { background: #e0e0e0; color: #333; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+        .btn-cancel:active { background: #cccccc; }
+
+        .hint { font-size: 12px; color: #666; margin-top: 3px; }
+        .time-row { display: flex; gap: 10px; }
+        .time-row select { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>路權申請時間設定</h2>
+
+        <!-- 新增：顯示 OCR 辨識出來的施工地址 -->
+        <div class="form-group">
+            <label>施工地址：</label>
+            <div id="addressText" class="address-box">正在讀取地址...</div>
+        </div>
+
+        <div class="form-group">
+            <label>施工日期：</label>
+            <!-- 加上 onclick 讓點擊整行 input 時自動嘗試展開日期選單 -->
+            <input type="date" id="selectedDate" onchange="onDateOrTimeChanged()" onclick="this.showPicker && this.showPicker()">
+        </div>
+
+        <div class="form-group">
+            <label>開始時間：</label>
+            <div class="time-row">
+                <select id="hourCb" onchange="onDateOrTimeChanged()">
+                    <option value="">請選擇開始時間</option>
+                    <!-- 動態產生對應時段格式 -->
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>施工時長：</label>
+            <select id="durationCb" onchange="validateAndUpdate()">
+                <option value="">請先選擇開始時間</option>
+            </select>
+        </div>
+
+        <div class="hint" id="statusHint"></div>
+
+        <!-- 操作按鈕區 -->
+        <button class="btn-submit" onclick="submitForm()">確認送出申請</button>
+        <button class="btn-cancel" onclick="cancelForm()">取消並返回</button>
+    </div>
+
+    <script>
+        // 自動產生 1 到 48 小時的連續清單
+        const ALL_DURATIONS = [];
+        for (let i = 1; i <= 48; i++) {
+            ALL_DURATIONS.push({ hours: i, label: i + " 小時" });
+        }
+
+        // 對應 Python 邏輯的時間格式化函式
+        function formatHourItem(hour) {
+            let period = "";
+            if (hour >= 0 && hour <= 5) {
+                period = "凌晨";
+            } else if (hour >= 6 && hour <= 11) {
+                period = "早上";
+            } else if (hour === 12) {
+                period = "中午";
+            } else if (hour >= 13 && hour <= 16) {
+                period = "下午";
+            } else {
+                period = "晚上";
+            }
+            const hourStr = hour.toString().padStart(2, '0');
+            return `${period} ${hourStr} 點`;
+        }
+
+        async function main() {
+            try {
+                await liff.init({ liffId: "2011503640-EyF0j6xp" });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                // 取得目前使用者的 userId 並拉取對應的施工地址
+                const context = await liff.getContext();
+                const userId = context ? context.userId : null;
+
+                const addressDiv = document.getElementById('addressText');
+                if (userId) {
+                    try {
+                        const res = await fetch(`/api/get-address?userId=${userId}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            addressDiv.innerText = data.address;
+                        } else {
+                            addressDiv.innerText = "⚠️ " + data.address;
+                            addressDiv.style.color = "red";
+                        }
+                    } catch (e) {
+                        addressDiv.innerText = "⚠️ 無法取得地址資訊（網路錯誤）";
+                        addressDiv.style.color = "red";
+                    }
+                } else {
+                    addressDiv.innerText = "⚠️ 無法取得使用者 ID";
+                    addressDiv.style.color = "red";
+                }
+
+                initOptions();
+            } catch (err) {
+                console.error("LIFF Initialization failed", err);
+            }
+        }
+        main();
+
+        function initOptions() {
+            const today = new Date();
+            const minDate = new Date(today.getTime() + 9 * 24 * 60 * 60 * 1000);
+            const minDateStr = minDate.toISOString().split('T')[0];
+
+            // 將日期輸入框的最小可選日期設為 9 天後
+            const dateInput = document.getElementById('selectedDate');
+            dateInput.min = minDateStr;
+            // dateInput.value = minDateStr; // 預設帶入最小可選日
+
+            const hourCb = document.getElementById('hourCb');
+            for (let i = 0; i < 24; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.text = formatHourItem(i);
+                hourCb.appendChild(opt);
+            }
+
+            hourCb.value = "8";
+
+            onDateOrTimeChanged();
+        }
+
+        function onDateOrTimeChanged() {
+            const dateStr = document.getElementById('selectedDate').value;
+            const hourVal = document.getElementById('hourCb').value;
+            const durationCb = document.getElementById('durationCb');
+            const currentSelectedDuration = durationCb.value;
+
+            durationCb.innerHTML = "";
+
+            if (!dateStr || hourVal === "") {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.text = "請先選擇開始時間";
+                durationCb.appendChild(opt);
+                validateAndUpdate();
+                return;
+            }
+
+            const year = parseInt(dateStr.split('-')[0]);
+            const month = parseInt(dateStr.split('-')[1]);
+            const day = parseInt(dateStr.split('-')[2]);
+            const startHour = parseInt(hourVal);
+
+            const startDt = new Date(year, month - 1, day, startHour, 0);
+
+            const pad = (n) => n.toString().padStart(2, '0');
+
+            let validCount = 0;
+            ALL_DURATIONS.forEach(item => {
+                const endDt = new Date(startDt.getTime() + item.hours * 60 * 60 * 1000);
+                const diffTime = endDt.getTime() - startDt.getTime();
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+                if (diffDays < 2) {
+                    const opt = document.createElement('option');
+                    opt.value = item.hours + "小時";
+
+                    // 組合完整的時長與結束時間標籤
+                    const endFormatted = `${endDt.getFullYear()}-${pad(endDt.getMonth() + 1)}-${pad(endDt.getDate())} ${pad(endDt.getHours())}:${pad(endDt.getMinutes())}`;
+                    opt.text = `${item.hours} 小時 (結束: ${endFormatted})`;
+
+                    durationCb.appendChild(opt);
+                    validCount++;
+                }
+            });
+
+            if (validCount === 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.text = "無可用時長（開始時間太晚）";
+                durationCb.appendChild(opt);
+            } else {
+                if (Array.from(durationCb.options).some(opt => opt.value === currentSelectedDuration)) {
+                    durationCb.value = currentSelectedDuration;
+                }
+            }
+
+            validateAndUpdate();
+        }
+
+        function validateAndUpdate() {
+            const dateStr = document.getElementById('selectedDate').value;
+            const hourVal = document.getElementById('hourCb').value;
+            const durationVal = document.getElementById('durationCb').value;
+            const statusHint = document.getElementById('statusHint');
+
+            if (!dateStr || hourVal === "" || durationVal === "") {
+                statusHint.style.color = "#666";
+                statusHint.innerText = "請完整填寫日期、開始時間與施工時長。";
+                return false;
+            }
+
+            const year = parseInt(dateStr.split('-')[0]);
+            const month = parseInt(dateStr.split('-')[1]);
+            const day = parseInt(dateStr.split('-')[2]);
+            const startHour = parseInt(hourVal);
+            const match = durationVal.match(/\d+/);
+            const durationHours = match ? parseInt(match[0]) : 0;
+
+            const startDt = new Date(year, month - 1, day, startHour, 0);
+            const endDt = new Date(startDt.getTime() + durationHours * 60 * 60 * 1000);
+
+            const diffTime = endDt.getTime() - startDt.getTime();
+            const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+            if (diffDays >= 2) {
+                statusHint.style.color = "red";
+                statusHint.innerText = "⚠️ 施工時長不可跨到第三日！";
+                return false;
+            } else {
+                statusHint.style.color = "#333";
+                statusHint.innerText = `📅 預計區間：${startDt.toLocaleString()} ~ ${endDt.toLocaleString()}`;
+                return true;
+            }
+        }
+
+        async function submitForm() {
+            const dateStr = document.getElementById('selectedDate').value;
+            const hourVal = document.getElementById('hourCb').value;
+            const durationVal = document.getElementById('durationCb').value;
+
+            if (!dateStr || hourVal === "" || durationVal === "") {
+                alert("請完整填寫所有欄位！");
+                return;
+            }
+
+            if (!validateAndUpdate()) {
+                alert("選擇的時間不符合系統限制（不可跨到第三日），請重新調整！");
+                return;
+            }
+
+            const year = dateStr.split('-')[0];
+            const month = dateStr.split('-')[1];
+            const day = dateStr.split('-')[2];
+            const startHour = parseInt(hourVal).toString().padStart(2, '0');
+
+            const startStr = `${year}-${month}-${day} ${startHour}:00`;
+            const match = durationVal.match(/\d+/);
+            const durationHours = match ? parseInt(match[0]) : 0;
+            const startDt = new Date(`${year}-${month}-${day}T${startHour}:00:00`);
+            const endDt = new Date(startDt.getTime() + durationHours * 60 * 60 * 1000);
+
+            const pad = (n) => n.toString().padStart(2, '0');
+            const endStr = `${endDt.getFullYear()}-${pad(endDt.getMonth() + 1)}-${pad(endDt.getDate())} ${pad(endDt.getHours())}:${pad(endDt.getMinutes())}`;
+
+            const timeRange = `${startStr}~${endStr}`;
+
+            const context = await liff.getContext();
+            const userId = context ? context.userId : null;
+
+            try {
+                const response = await fetch('/api/liff-submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userId, timeRange: timeRange })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert("申請已送出，背景正在自動填表中！");
+                    liff.closeWindow();
+                } else {
+                    alert("送出失敗：" + result.message);
+                }
+            } catch (err) {
+                alert("發生網路錯誤：" + err);
+            }
+        }
+
+        // 取消按鈕邏輯：直接關閉 LIFF 視窗
+        function cancelForm() {
+            if (confirm("確定要取消此次填寫嗎？")) {
+                liff.closeWindow();
+            }
+        }
+    </script>
+</body>
+</html>
