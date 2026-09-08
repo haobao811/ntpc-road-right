@@ -189,6 +189,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.selected_date = None
         self.last_selected_qdate = None
         self.image_path = ""
+        self.last_dir = str(Path.home() / "Desktop")
         self.is_updating_address = False
 
         self.geocode_thread = None
@@ -376,9 +377,12 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.calendar.clicked.connect(self.on_date_selected)
         self.calendar.currentPageChanged.connect(lambda: self.apply_disabled_dates_format(min_date))
 
-        self.lbl_selected_date_info = QLabel("尚未選擇日期")
+        self.lbl_selected_date_info = QLabel("⚠️ 尚未選擇日期")
         self.lbl_selected_date_info.setFont(QFont("Microsoft JhengHei", 11, QFont.Weight.Bold))
-        self.lbl_selected_date_info.setStyleSheet("color: #6c757d;")
+        self.lbl_selected_date_info.setStyleSheet(
+            "color: #842029; background-color: #f8d7da; border: 1px solid #f5c2c7; "
+            "padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: bold;"
+        )
 
         # 時間與時長選單配置
         time_duration_layout = QHBoxLayout()
@@ -809,8 +813,11 @@ class IntegratedApp(QtWidgets.QMainWindow):
         min_date = self.calendar.minimumDate()
         self.apply_disabled_dates_format(min_date)
 
-        self.lbl_selected_date_info.setText("尚未選擇日期")
-        self.lbl_selected_date_info.setStyleSheet("color: #6c757d;")
+        self.lbl_selected_date_info = QLabel("⚠️ 尚未選擇日期")
+        self.lbl_selected_date_info.setStyleSheet(
+            "color: #842029; background-color: #f8d7da; border: 1px solid #f5c2c7; "
+            "padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: bold;"
+        )
 
         self.hour_cb.setCurrentIndex(0)
         self.minute_cb.setCurrentIndex(0)
@@ -982,9 +989,9 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.process_selected_image(path)
 
     def choose_image(self):
-        desktop_path = str(Path.home() / "Desktop")
-        path, _ = QFileDialog.getOpenFileName(self, "選擇圖檔", desktop_path, "圖片 (*.jpg *.png *.pdf)")
+        path, _ = QFileDialog.getOpenFileName(self, "選擇圖檔", self.last_dir, "圖片 (*.jpg *.png *.pdf)")
         if path:
+            self.last_dir = str(Path(path).parent)
             self.process_selected_image(path)
 
     def submit(self):
