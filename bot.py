@@ -27,9 +27,12 @@ class AutoFillForm:
     def __init__(self):
         self.driver = webdriver.Chrome()
         self.wait = WebDriverWait(self.driver, 15)
+        self.log = ''
+        self.apply_info = None
 
     def auto_fill_form(self, apply_info: DynamicApplyInfo):
         try:
+            self.apply_info = apply_info
             self.driver.get("https://service.ntpc.gov.tw/eservice/Ac125024.action")
             self.driver.maximize_window()
 
@@ -303,12 +306,13 @@ class AutoFillForm:
             query_code = result_data.get("案件查詢碼", "未知")
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            log_message = f"[{timestamp}] 申辦成功！ | " f"申請日期: {app_date} | " f"案件編號: {case_no} | " f"案件查詢碼: {query_code}"
+            log_message = f"[{timestamp}] 申辦成功！ | 申請日期: {app_date} | 案件編號: {case_no} | 案件查詢碼: {query_code} | {self.apply_info.to_dict()}"
 
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(log_message + "\n")
 
             logger.info(f"已成功紀錄至本地日誌: {log_message}")
+            self.log = log_message
             return True
         except Exception as e:
             logger.error(f"解析完成畫面或寫入 Log 失敗: {e}")

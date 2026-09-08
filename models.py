@@ -67,6 +67,9 @@ class DynamicApplyInfo:
         chief_info = get_village_chief_info(self.village, self.town)
         self.chief_name = chief_info.get("chief_name") or ""
 
+    def to_dict(self):
+        return {'address': self.address, 'start_datetime': str(self.start_datetime), 'end_time': str(self.end_time)}
+
     def normalize(self, raw_address: str) -> str:
         s = unicodedata.normalize("NFKC", raw_address)
         s = self._to_half_width(s)
