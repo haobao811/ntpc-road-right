@@ -141,8 +141,7 @@ def show_elder_question(parent: QWidget, title: str, text: str) -> bool:
     msg.setStyleSheet(MSG_BOX_STYLE)
 
     no_btn = msg.addButton("取消", QMessageBox.ButtonRole.NoRole)
-    no_btn.setStyleSheet(
-        """
+    no_btn.setStyleSheet("""
         QPushButton {
             color: #6c757d;
             background-color: transparent;
@@ -157,8 +156,7 @@ def show_elder_question(parent: QWidget, title: str, text: str) -> bool:
             background-color: #495057;
             border: 1px solid #495057;
         }
-    """
-    )
+    """)
     yes_btn = msg.addButton("確定", QMessageBox.ButtonRole.YesRole)
     msg.setDefaultButton(yes_btn)
     msg.exec()
@@ -219,8 +217,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.btn_reset = QPushButton("🔄 重新填寫")
         self.btn_reset.setFont(QFont("Microsoft JhengHei", 12))
         self.btn_reset.setToolTip("放棄目前的輸入並重新開始")
-        self.btn_reset.setStyleSheet(
-            """
+        self.btn_reset.setStyleSheet("""
             QPushButton {
                 background-color: #f8f9fa;
                 color: #6c757d;
@@ -233,8 +230,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 color: #495057;
                 border-color: #adb5bd;
             }
-        """
-        )
+        """)
         self.btn_reset.clicked.connect(lambda: self.reset_form_completely(ask=True))
 
         top_header_layout.addWidget(self.lbl_progress, stretch=1)
@@ -252,8 +248,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         img_layout = QHBoxLayout()
         self.img_label = DragDropLabel("📁 點擊此處選擇圖檔 或 將檔案拖曳至此")
         self.img_label.setFont(QFont("Microsoft JhengHei", 13))
-        self.img_label.setStyleSheet(
-            """
+        self.img_label.setStyleSheet("""
             QLabel {
                 border: 2px dashed #0d6efd;
                 border-radius: 8px;
@@ -267,8 +262,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 color: #495057;
                 border-color: #0b5ed7;
             }
-        """
-        )
+        """)
         self.img_label.file_dropped.connect(self.handle_dropped_image)
         self.img_label.clicked.connect(self.choose_image)
 
@@ -325,8 +319,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.calendar.setFont(QFont("Microsoft JhengHei", 10))
         self.calendar.setMaximumHeight(240)  # 稍微限制高度以容納下方控制項
 
-        self.calendar.setStyleSheet(
-            """
+        self.calendar.setStyleSheet("""
             QCalendarWidget {
                 background-color: #ffffff;
                 border: 2px solid #0d6efd;
@@ -370,8 +363,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 font-size: 13px;
                 font-weight: bold;
             }
-            """
-        )
+            """)
 
         self.apply_disabled_dates_format(min_date)
         self.calendar.clicked.connect(self.on_date_selected)
@@ -464,8 +456,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.btn_next = QPushButton("下一步 ➡️")
         self.btn_next.setFont(QFont("Microsoft JhengHei", 13, QFont.Weight.Bold))
         # 加入 hover 與 pressed 樣式，點擊時會自動變深並微幅下沉
-        self.btn_next.setStyleSheet(
-            """
+        self.btn_next.setStyleSheet("""
             QPushButton {
                 background-color: #0d6efd;
                 color: white;
@@ -485,8 +476,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 color: #adb5bd;
                 border: 1px solid #ced4da;
             }
-        """
-        )
+        """)
         self.btn_next.clicked.connect(self.go_next)  # 直接接回原本的 go_next
 
         nav_layout.addWidget(self.btn_prev)
@@ -642,8 +632,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         # 索引 3 代表步驟 4（確認送出頁面）
         if idx == 3:
             self.btn_next.setText("🚀 送出自動填表")
-            self.btn_next.setStyleSheet(
-                """
+            self.btn_next.setStyleSheet("""
                 QPushButton {
                     background-color: #198754;
                     color: white;
@@ -659,13 +648,11 @@ class IntegratedApp(QtWidgets.QMainWindow):
                     background-color: #0f5132;
                     padding-top: 10px;
                 }
-            """
-            )
+            """)
             self.update_summary()
         else:
             self.btn_next.setText("下一步 ➡️")
-            self.btn_next.setStyleSheet(
-                """
+            self.btn_next.setStyleSheet("""
                 QPushButton {
                     background-color: #0d6efd;
                     color: white;
@@ -681,8 +668,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
                     background-color: #052c65;
                     padding-top: 10px;
                 }
-            """
-            )
+            """)
 
     def update_duration_options(self):
         """根據已選擇的開始時間，動態計算並更新施工時長選項"""
@@ -825,8 +811,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.duration_cb.addItem("-- 請選擇時長 --")
 
         self.img_label.setText("📁 點擊此處選擇圖檔 或 將檔案拖曳至此")
-        self.img_label.setStyleSheet(
-            """
+        self.img_label.setStyleSheet("""
             QLabel {
                 border: 2px dashed #0d6efd;
                 border-radius: 8px;
@@ -840,8 +825,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
                 color: #495057;
                 border-color: #0b5ed7;
             }
-        """
-        )
+        """)
         self.summary_label.clear()
 
         self.stacked_widget.setCurrentIndex(0)
@@ -960,8 +944,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
             self.image_path = path
             file_name = Path(path).name
             self.img_label.setText(f"已上傳: {file_name}")
-            self.img_label.setStyleSheet(
-                """
+            self.img_label.setStyleSheet("""
                 QLabel {
                     border: 2px solid #198754;
                     border-radius: 8px;
@@ -971,8 +954,7 @@ class IntegratedApp(QtWidgets.QMainWindow):
                     padding: 40px;
                     min-height: 200px;
                 }
-            """
-            )
+            """)
 
             if "新北市" in file_name:
                 stem_name = Path(file_name).stem

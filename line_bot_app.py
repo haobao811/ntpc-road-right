@@ -514,7 +514,7 @@ def api_calendar_events():
         if df.empty:
             return jsonify([])
 
-        # 2. 批次取得現有狀態快取 (完全不跑爬蟲，確保極速回應)
+        # 2. 批次取得現有狀態快取
         case_nos = df["案件編號"].dropna().astype(str).tolist()
         latest_status_map = get_latest_statuses_for_batch(case_nos)
 
@@ -526,13 +526,18 @@ def api_calendar_events():
             start_str = pd.to_datetime(row["開始時間"]).strftime("%Y-%m-%d %H:%M")
             end_str = str(row["結束時間"])
 
-            # 3. 如果 log 裡沒有狀態，給予預設並標記需要非同步動態載入 (needsFetch: true)
+            # 3. 判斷邏輯：如果沒有狀態，或是狀態中「沒有已結案」，就標記需要非同步重新即時查看 (needsFetch: True)
             if not status:
                 status = "點擊更新"
-                color = "#6c757d"  # 灰色代表尚未同步
+                color = "#6c757d"  # 灰色
+                needs_fetch = True
+            elif "已結案" not in status:
+                # 雖然快取有狀態，但因為尚未結案，需標記讓前端在背景重新即時查看一遍
+                color = "#ffc107"  # 黃色
                 needs_fetch = True
             else:
-                color = "#198754" if "已結案" in status else "#ffc107"
+                # 已經結案的案件不需要重新爬蟲
+                color = "#198754"  # 綠色
                 needs_fetch = False
 
             events.append(

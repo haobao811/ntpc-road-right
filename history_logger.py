@@ -1,5 +1,7 @@
 import os
+import csv
 import pandas as pd
+from datetime import datetime
 from models import ApplicationResultRecord
 
 STATUS_LOG_FILE = "status_history.csv"
@@ -19,15 +21,19 @@ init_csv_log()
 
 def save_application_log(record: ApplicationResultRecord):
     """將 ApplicationResultRecord 物件寫入 CSV"""
-    new_data = pd.DataFrame([{
-        "時間": record.timestamp,
-        "使用者ID": record.user_id,
-        "施工地址": record.address,
-        "開始時間": record.start_time,
-        "結束時間": record.end_time,
-        "案件編號": record.case_no,
-        "查詢碼": record.query_code
-    }])
+    new_data = pd.DataFrame(
+        [
+            {
+                "時間": record.timestamp,
+                "使用者ID": record.user_id,
+                "施工地址": record.address,
+                "開始時間": record.start_time,
+                "結束時間": record.end_time,
+                "案件編號": record.case_no,
+                "查詢碼": record.query_code,
+            }
+        ]
+    )
 
     try:
         header_flag = not os.path.exists(LOG_CSV_FILE) or os.path.getsize(LOG_CSV_FILE) == 0
@@ -37,16 +43,17 @@ def save_application_log(record: ApplicationResultRecord):
 
 
 def append_status_log(case_no: str, status: str):
-    """安全地將每次查詢到的狀態新增到日誌中"""
-    new_row = pd.DataFrame([{
-        "時間": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "案件編號": str(case_no),
-        "案件狀態": status
-    }])
+    """使用內建 csv 模組安全地將狀態附加到日誌中（不依賴 pandas）"""
+    file_exists = os.path.exists(STATUS_LOG_FILE)
 
-    # 如果檔案不存在則寫入表頭，存在則純粹 append 附加在後面
-    header = not os.path.exists(STATUS_LOG_FILE)
-    new_row.to_csv(STATUS_LOG_FILE, mode='a', header=header, index=False, encoding="utf-8-sig")
+    with open(STATUS_LOG_FILE, mode="a", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        # 如果檔案不存在，先寫入表頭
+        if not file_exists:
+            writer.writerow(["時間", "案件編號", "案件狀態"])
+
+        # 寫入資料列，內建 csv 會自動處理特殊字元與引號包覆
+        writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), str(case_no), status])
 
 
 def get_latest_status_by_case(case_no: str) -> str:

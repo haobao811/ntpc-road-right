@@ -5,32 +5,141 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>路權施工排程行事曆</title>
-    <!-- Bootstrap 5 -->
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- FullCalendar CSS -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <style>
         body {
-            background-color: #f8f9fa;
-            padding: 15px;
+            background-color: #f4f7f6;
+            font-family: 'Inter', sans-serif;
+            color: #333;
+            padding: 30px 15px;
+        }
+
+        .main-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .calendar-card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 25px;
+            border: none;
+        }
+
+        .page-title {
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            letter-spacing: -0.5px;
         }
 
         #calendar {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .fc .fc-button-primary {
+            background-color: #ffffff;
+            border-color: #e2e8f0;
+            color: #4a5568;
+            font-weight: 500;
+            border-radius: 6px;
+            padding: 6px 12px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+            transition: all 0.2s;
+        }
+
+        .fc .fc-button-primary:hover {
+            background-color: #edf2f7;
+            border-color: #cbd5e0;
+            color: #2d3748;
+        }
+
+        .fc .fc-button-primary:not(:disabled).fc-button-active,
+        .fc .fc-button-primary:not(:disabled):active {
+            background-color: #3182ce;
+            border-color: #3182ce;
+            color: #fff;
+        }
+
+        .fc .fc-col-header-cell-cushion {
+            font-weight: 600;
+            color: #718096;
+            text-decoration: none;
+            padding: 10px 0;
+        }
+
+        .fc .fc-daygrid-day-number {
+            font-weight: 500;
+            color: #4a5568;
+            padding: 8px;
+            text-decoration: none;
+        }
+
+        .fc .fc-day-today {
+            background-color: #ebf8ff !important;
+        }
+
+        .fc-event {
+            border-radius: 6px;
+            padding: 3px 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: none !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            margin-bottom: 2px;
+        }
+
+        .fc-event:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            transition: all 0.1s ease;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h3 class="mb-4 text-center">📅 施工排程行事曆</h3>
-        <div id='calendar'></div>
+    <div class="main-container">
+        <h3 class="page-title text-center">📅 施工排程行事曆</h3>
+        <div class="calendar-card">
+            <div id='calendar'></div>
+        </div>
     </div>
+
+    <!-- 詳細資訊互動 Modal -->
+    <div class="modal fade" id="eventModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold">📍 施工詳細資訊</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <p class="mb-2"><strong>施工地點：</strong><span id="modalTitle"></span></p>
+                    <p class="mb-2"><strong>案件編號：</strong><span id="modalCaseNo" class="text-muted"></span></p>
+                    <p class="mb-0"><strong>施工時間：</strong><span id="modalTime" class="text-muted"></span></p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">關閉</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -47,13 +156,21 @@
                 locale: 'zh-tw',
                 events: `/api/calendar-events?userId=${userId}`,
                 eventDidMount: function(info) {
-                    // 當事件載入並掛載到 DOM 時，如果發現需要動態載入狀態
                     var props = info.event.extendedProps;
-                    if (props && props.needsFetch && props.caseNo) {
-                        // 標記為正在讀取
-                        info.el.style.opacity = '0.7';
 
-                        // 非同步背景發送請求取得即時狀態
+                    // 1. 設定滑鼠 hover 時顯示完整資訊的 Tooltip
+                    var startStr = info.event.start ? info.event.start.toLocaleString() : '';
+                    var endStr = info.event.end ? info.event.end.toLocaleString() : '未定';
+                    var tooltipContent = `地點: ${info.event.title}\n編號: ${props.caseNo || '-'}\n時間: ${startStr} ~ ${endStr}`;
+
+                    info.el.setAttribute('title', tooltipContent);
+                    // 如果專案有啟用 Bootstrap Tooltip，也可以在這裡初始化它 (選用)
+                    // new bootstrap.Tooltip(info.el, { title: tooltipContent, placement: 'top', trigger: 'hover', container: 'body' });
+
+                    // 2. 非同步背景動態載入狀態
+                    if (props && props.needsFetch && props.caseNo) {
+                        info.el.style.opacity = '0.6';
+
                         fetch('/api/fetch-case-status', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -62,12 +179,15 @@
                             .then(response => response.json())
                             .then(res => {
                                 if (res.success) {
-                                    // 即時更新 FullCalendar 事件的標題與顏色
                                     info.event.setProp('title', res.title);
                                     info.event.setProp('backgroundColor', res.color);
                                     info.event.setProp('borderColor', res.color);
                                     info.event.setExtendedProp('needsFetch', false);
                                     info.el.style.opacity = '1';
+
+                                    // 更新後同步更新 tooltip 內容
+                                    var updatedTooltip = `地點: ${res.title}\n編號: ${props.caseNo}\n時間: ${startStr} ~ ${endStr}`;
+                                    info.el.setAttribute('title', updatedTooltip);
                                 } else {
                                     info.el.style.opacity = '1';
                                 }
@@ -79,7 +199,15 @@
                     }
                 },
                 eventClick: function(info) {
-                    alert(`📍 施工地點: ${info.event.title}\n📌 案件編號: ${info.event.extendedProps.caseNo}\n🕒 時間: ${info.event.start.toLocaleString()} ~ ${info.event.end ? info.event.end.toLocaleString() : '未定'}`);
+                    document.getElementById('modalTitle').innerText = info.event.title;
+                    document.getElementById('modalCaseNo').innerText = info.event.extendedProps.caseNo || '-';
+
+                    var startStr = info.event.start ? info.event.start.toLocaleString() : '';
+                    var endStr = info.event.end ? info.event.end.toLocaleString() : '未定';
+                    document.getElementById('modalTime').innerText = `${startStr} ~ ${endStr}`;
+
+                    var modal = new bootstrap.Modal(document.getElementById('eventModal'));
+                    modal.show();
                 }
             });
             calendar.render();

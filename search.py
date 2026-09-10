@@ -39,12 +39,7 @@ def parse_case_query_result(html_content: str) -> CaseInfo:
         right_box = item.find("div", class_="right-box")
 
         if title_div and right_box:
-            title = (
-                title_div.get_text(strip=True)
-                .replace("：", "")
-                .replace("\xa0", "")
-                .strip()
-            )
+            title = title_div.get_text(strip=True).replace("：", "").replace("\xa0", "").strip()
             if not title or title == "&nbsp;":
                 continue
 
@@ -60,12 +55,7 @@ def parse_case_query_result(html_content: str) -> CaseInfo:
                     ng_click_val = button["ng-click"]
                     if "downloadFile" in ng_click_val:
                         try:
-                            params = [
-                                p.strip().strip("'\"")
-                                for p in ng_click_val.split("(")[1]
-                                .rstrip(")")
-                                .split(",")
-                            ]
+                            params = [p.strip().strip("'\"") for p in ng_click_val.split("(")[1].rstrip(")").split(",")]
                             if len(params) >= 4:
                                 query_params = {
                                     "caseNo": params[0],
@@ -76,9 +66,7 @@ def parse_case_query_result(html_content: str) -> CaseInfo:
                                 download_url = f"{BASE_URL}/service/downloadfromQuery.action?{urlencode(query_params)}"
 
                                 btn_text = button.get_text(strip=True)
-                                full_text = right_box.get_text(strip=True).replace(
-                                    btn_text, ""
-                                )
+                                full_text = right_box.get_text(strip=True).replace(btn_text, "")
                                 file_desc = " ".join(full_text.split())
 
                                 attachments.append(
@@ -120,18 +108,18 @@ def parse_case_query_result(html_content: str) -> CaseInfo:
     )
 
 
-def query_case_with_local_ocr(
-    case_no: str, query_code: str, max_retries: int = 10
-):
+def query_case_with_local_ocr(case_no: str, query_code: str, max_retries: int = 10):
     session = requests.Session()
-    session.headers.update({
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
-            " like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        ),
-        "Referer": f"{BASE_URL}/service/",
-        "Origin": BASE_URL,
-    })
+    session.headers.update(
+        {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
+                " like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Referer": f"{BASE_URL}/service/",
+            "Origin": BASE_URL,
+        }
+    )
 
     print("🌐 正在初始化連線...")
     for attempt in range(1, max_retries + 1):
@@ -169,10 +157,7 @@ def query_case_with_local_ocr(
         if response.status_code == 200:
             res_text = response.text
 
-            if (
-                "驗證碼已逾時,請更新後重新輸入!" in res_text
-                or "驗證碼錯誤" in res_text
-            ):
+            if "驗證碼已逾時,請更新後重新輸入!" in res_text or "驗證碼錯誤" in res_text:
                 print("❌ 驗證碼錯誤或逾時，重新嘗試...")
                 continue
 
@@ -209,5 +194,5 @@ if __name__ == "__main__":
         print(f"承辦人員: {parsed_data.officer}")
         print(f"聯絡資訊: {parsed_data.contact}")
         for att in parsed_data.attachments:
-            if att.title.startswith('附件檔案'):
+            if att.title.startswith("附件檔案"):
                 print(att.download_url, att.title)
