@@ -36,7 +36,7 @@ from linebot.v3.webhooks import (
 from bot import AutoFillForm
 from history_logger import (
     LOG_CSV_FILE,
-    get_user_application_history,
+    append_status_log,
     save_application_log,
 )
 from models import ApplicationResultRecord, DynamicApplyInfo
@@ -417,6 +417,7 @@ def api_history_more():
                     organ = case_info.organ or "-"
                     officer = case_info.officer or "-"
                     attachments = case_info.attachments
+                    append_status_log(case_no, status_text)
 
             return {
                 "timestamp": row["時間"],
