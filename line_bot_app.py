@@ -435,7 +435,11 @@ def api_history_more():
 
         # 支援依施工地址進行關鍵字模糊過濾
         if search_query:
-            df = df[df["施工地址"].str.contains(search_query, na=False)]
+            clean_query = search_query.replace(" ", "")
+            df = df[
+                df["施工地址"].str.contains(search_query, na=False) | 
+                df["案件編號"].astype(str).str.replace(r"\s+", "", regex=True).str.endswith(clean_query)
+            ]
 
         reversed_df = df.iloc[::-1].reset_index(drop=True)
 
