@@ -372,11 +372,7 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
 # 5. 新增：歷史申請與即時審核結果查詢頁面
 @app.route("/history-view")
 def history_view():
-    user_id = request.args.get("userId")
-    if not user_id:
-        return "<h3>❌ 錯誤：缺少使用者識別碼 (userId)</h3>", 400
-    # 直接回傳靜態畫面，不經手任何運算與爬蟲
-    return render_template("history.html", user_id=user_id)
+    return render_template("history.html")
 
 
 @app.route("/api/history-more", methods=["GET"])
