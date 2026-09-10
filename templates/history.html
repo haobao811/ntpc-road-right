@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>路權申請歷史與審核進度查詢</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         body {
             background-color: #f8f9fa;
@@ -28,6 +29,14 @@
 <body>
     <div class="container" style="max-width: 600px;">
         <h3 class="mb-4 text-center">📋 歷史申請與審核進度</h3>
+
+        <!-- 地址搜尋列 -->
+        <div class="input-group mb-4">
+            <input type="text" id="search-input" class="form-control" placeholder="輸入施工地址關鍵字（例如：板橋區）"
+                onkeydown="if(event.key==='Enter') searchRecords()">
+            <button class="btn btn-outline-primary" type="button" onclick="searchRecords()">🔍 搜尋</button>
+            <button class="btn btn-outline-secondary" type="button" onclick="resetSearch()">重置</button>
+        </div>
 
         <!-- 訊息提示區塊 -->
         <div id="message-container"></div>
@@ -54,12 +63,48 @@
 
     <script>
         let currentOffset = 0;
+        let currentSearch = "";
         const userId = "{{ user_id }}";
 
         // 頁面載入後立即發送第一次 API 請求 (offset=0)
         document.addEventListener("DOMContentLoaded", () => {
             loadRecords();
         });
+
+        function searchRecords() {
+            currentSearch = document.getElementById("search-input").value.trim();
+            currentOffset = 0;
+            document.getElementById("message-container").innerHTML = "";
+            document.getElementById("records-container").innerHTML = `
+                <div id="loading-spinner" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入中...</span>
+                    </div>
+                    <p class="text-muted mt-2" style="font-size: 0.9rem;">正在搜尋並查詢審核進度，請稍候...</p>
+                </div>
+            `;
+            document.getElementById("no-more-msg").style.display = "none";
+            document.getElementById("action-buttons").style.display = "none";
+            loadRecords();
+        }
+
+        function resetSearch() {
+            document.getElementById("search-input").value = "";
+            currentSearch = "";
+            currentOffset = 0;
+            document.getElementById("message-container").innerHTML = "";
+            document.getElementById("records-container").innerHTML = `
+                <div id="loading-spinner" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入中...</span>
+                    </div>
+                    <p class="text-muted mt-2" style="font-size: 0.9rem;">正在向政府網站即時查詢審核進度，請稍候...</p>
+                </div>
+            `;
+            document.getElementById("no-more-msg").style.display = "none";
+            document.getElementById("action-buttons").style.display = "none";
+            loadRecords();
+        }
 
         function loadRecords() {
             const loadBtn = document.getElementById("load-more-btn");
@@ -68,10 +113,10 @@
                 loadBtn.innerText = "載入中...";
             }
 
-            fetch(`/api/history-more?userId=${userId}&offset=${currentOffset}`)
+            fetch(`/api/history-more?userId=${userId}&offset=${currentOffset}&search=${encodeURIComponent(currentSearch)}`)
                 .then(res => res.json())
                 .then(data => {
-                    // 移除初次載入的轉圈圈動畫
+                    // 移除初次載入或搜尋時的轉圈圈動畫
                     const spinner = document.getElementById("loading-spinner");
                     if (spinner) spinner.remove();
 
@@ -80,11 +125,16 @@
                         const actionButtons = document.getElementById("action-buttons");
                         actionButtons.style.display = "block";
 
+                        if (currentOffset === 0) {
+                            container.innerHTML = "";
+                        }
+
                         if (data.records.length === 0 && currentOffset === 0) {
-                            document.getElementById("message-container.innerHTML").innerHTML = `
-                                <div class="alert alert-info text-center">目前尚無任何申請歷史紀錄。</div>
+                            document.getElementById("message-container").innerHTML = `
+                                <div class="alert alert-info text-center">找不到符合條件的申請歷史紀錄。</div>
                             `;
                             if (loadBtn) loadBtn.style.display = "none";
+                            document.getElementById("no-more-msg").style.display = "none";
                             return;
                         }
 
@@ -145,6 +195,7 @@
                                 loadBtn.disabled = false;
                                 loadBtn.innerText = "📥 載入更多 (5筆)";
                             }
+                            document.getElementById("no-more-msg").style.display = "none";
                         }
                     } else {
                         alert("載入資料發生錯誤：" + data.message);

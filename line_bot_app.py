@@ -378,6 +378,7 @@ def history_view():
 @app.route("/api/history-more", methods=["GET"])
 def api_history_more():
     user_id = request.args.get("userId")
+    search_query = request.args.get("search", "").strip()
     offset = int(request.args.get("offset", 0))
     limit = 5
 
@@ -386,7 +387,11 @@ def api_history_more():
 
     try:
         df = pd.read_csv(LOG_CSV_FILE, encoding="utf-8-sig")
-        # df = df[df["使用者ID"] == user_id]
+
+        # 支援依施工地址進行關鍵字模糊過濾
+        if search_query:
+            df = df[df["施工地址"].str.contains(search_query, na=False)]
+
         reversed_df = df.iloc[::-1].reset_index(drop=True)
 
         batch_df = reversed_df.iloc[offset : offset + limit]
@@ -402,6 +407,7 @@ def api_history_more():
             attachments = []
             organ = "-"
             officer = "-"
+            case_info = None
 
             if case_no and case_no != "未知" and query_code and query_code != "未知":
                 html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
@@ -422,7 +428,7 @@ def api_history_more():
                 "status": status_text,
                 "organ": organ,
                 "officer": officer,
-                "contact": case_info.contact or '',
+                "contact": case_info.contact if case_info else '',
                 "attachments": [
                     {"file_name": att.file_name, "download_url": att.download_url, "description": att.description}
                     for att in attachments
