@@ -500,70 +500,86 @@ def api_calendar_events():
         start_range = request.args.get("start")
         end_range = request.args.get("end")
 
-        # 2. 如果有帶入區間，可針對「開始時間」進行初步篩選，減少不必要的運算
         if start_range and end_range:
             df["開始時間"] = pd.to_datetime(df["開始時間"], errors="coerce")
             start_dt = pd.to_datetime(start_range)
             end_dt = pd.to_datetime(end_range)
-
-            # 過濾落在當前檢視區間內的施工案件
             df = df[(df["開始時間"] >= start_dt) & (df["開始時間"] <= end_dt)]
 
         if df.empty:
             return jsonify([])
 
-        # 3. 批次取得篩選後案件的最新狀態 (從 status_history.csv join)
+        # 2. 批次取得現有狀態快取 (完全不跑爬蟲，確保極速回應)
         case_nos = df["案件編號"].dropna().astype(str).tolist()
         latest_status_map = get_latest_statuses_for_batch(case_nos)
 
         events = []
-        rows_to_fetch = []
-
         for _, row in df.iterrows():
             case_no = str(row["案件編號"])
             status = latest_status_map.get(case_no)
 
-            # 把時間轉回字串格式供前端渲染
             start_str = pd.to_datetime(row["開始時間"]).strftime("%Y-%m-%d %H:%M")
             end_str = str(row["結束時間"])
 
+            # 3. 如果 log 裡沒有狀態，給予預設並標記需要非同步動態載入 (needsFetch: true)
             if not status:
-                rows_to_fetch.append((row, start_str, end_str))
+                status = "點擊更新"
+                color = "#6c757d"  # 灰色代表尚未同步
+                needs_fetch = True
             else:
                 color = "#198754" if "已結案" in status else "#ffc107"
-                events.append({
-                    "title": f"{row['施工地址']} ({status})",
-                    "start": start_str,
-                    "end": end_str,
-                    "backgroundColor": color,
-                    "borderColor": color,
-                    "extendedProps": {"caseNo": case_no, "organ": row.get("organ", "-")},
-                })
+                needs_fetch = False
 
-        # 4. 針對區間內缺少狀態的案件進行即時補查
-        if rows_to_fetch:
-            def fetch_missing(item):
-                row, start_str, end_str = item
-                status = get_or_fetch_case_status(row)
-                case_no = str(row["案件編號"])
-                color = "#198754" if "已結案" in status else "#ffc107"
-                return {
+            events.append(
+                {
                     "title": f"{row['施工地址']} ({status})",
                     "start": start_str,
                     "end": end_str,
                     "backgroundColor": color,
                     "borderColor": color,
-                    "extendedProps": {"caseNo": case_no, "organ": row.get("organ", "-")},
+                    "extendedProps": {"caseNo": case_no, "organ": row.get("organ", "-"), "needsFetch": needs_fetch},
                 }
-
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                fetched_events = list(executor.map(fetch_missing, rows_to_fetch))
-                events.extend(fetched_events)
+            )
 
         return jsonify(events)
     except Exception as e:
         print(f"❌ 讀取行事曆事件失敗: {e}")
         return jsonify([])
+
+
+@app.route("/api/fetch-case-status", methods=["POST"])
+def api_fetch_case_status():
+    """專門提供前端非同步動態載入與更新單一案件狀態用"""
+    data = request.json or {}
+    case_no = data.get("caseNo")
+    if not case_no:
+        return jsonify({"success": False, "message": "缺少案件編號"})
+
+    try:
+        if not os.path.exists(LOG_CSV_FILE):
+            return jsonify({"success": False, "message": "找不到記錄檔"})
+
+        df = pd.read_csv(LOG_CSV_FILE, encoding="utf-8-sig")
+        matched = df[df["案件編號"].astype(str) == str(case_no)]
+        if matched.empty:
+            return jsonify({"success": False, "message": "找不到對應案件"})
+
+        row = matched.iloc[0]
+        query_code = str(row.get("查詢碼", ""))
+        address = row.get("施工地址", "")
+
+        status_text = "查詢失敗"
+        if query_code and query_code != "未知":
+            html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
+            if html_res:
+                case_info = parse_case_query_result(html_res)
+                status_text = case_info.status or "未知狀態"
+                append_status_log(case_no, status_text)
+
+        color = "#198754" if "已結案" in status_text else "#ffc107"
+        return jsonify({"success": True, "status": status_text, "color": color, "title": f"{address} ({status_text})"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
 
 
 if __name__ == "__main__":

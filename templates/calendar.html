@@ -46,6 +46,38 @@
                 },
                 locale: 'zh-tw',
                 events: `/api/calendar-events?userId=${userId}`,
+                eventDidMount: function(info) {
+                    // 當事件載入並掛載到 DOM 時，如果發現需要動態載入狀態
+                    var props = info.event.extendedProps;
+                    if (props && props.needsFetch && props.caseNo) {
+                        // 標記為正在讀取
+                        info.el.style.opacity = '0.7';
+
+                        // 非同步背景發送請求取得即時狀態
+                        fetch('/api/fetch-case-status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ caseNo: props.caseNo })
+                        })
+                            .then(response => response.json())
+                            .then(res => {
+                                if (res.success) {
+                                    // 即時更新 FullCalendar 事件的標題與顏色
+                                    info.event.setProp('title', res.title);
+                                    info.event.setProp('backgroundColor', res.color);
+                                    info.event.setProp('borderColor', res.color);
+                                    info.event.setExtendedProp('needsFetch', false);
+                                    info.el.style.opacity = '1';
+                                } else {
+                                    info.el.style.opacity = '1';
+                                }
+                            })
+                            .catch(err => {
+                                console.error('動態更新狀態失敗:', err);
+                                info.el.style.opacity = '1';
+                            });
+                    }
+                },
                 eventClick: function(info) {
                     alert(`📍 施工地點: ${info.event.title}\n📌 案件編號: ${info.event.extendedProps.caseNo}\n🕒 時間: ${info.event.start.toLocaleString()} ~ ${info.event.end ? info.event.end.toLocaleString() : '未定'}`);
                 }
