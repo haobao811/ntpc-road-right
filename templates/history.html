@@ -121,10 +121,14 @@
                                             🕒 施工時間：${item.start_time} ~ ${item.end_time}<br>
                                             📌 案件編號：<code>${item.case_no}</code><br>
                                             🏛️ 主辦機關：${item.organ}<br>
-                                            👤 承辦人員：${item.officer} <span class="text-muted">|</span> <i class="bi bi-telephone-fill text-secondary"></i> ${item.contact}<br>
-                                            ⏱️ 申辦送出時間：${item.timestamp}
+                                            👤 承辦人員：${item.officer} <span class="text-muted">|</span> <i class="bi bi-telephone-fill text-secondary"></i> ${item.contact}
                                         </p>
+
                                         ${attachmentsHtml}
+
+                                        <div class="text-end text-muted mt-2 pt-2 border-top" style="font-size: 0.75rem;">
+                                            ⏱️ 申辦送出時間：${item.timestamp}
+                                        </div>
                                     </div>
                                 </div>
                             `;
