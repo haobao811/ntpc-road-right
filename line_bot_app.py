@@ -422,6 +422,7 @@ def api_history_more():
                 "status": status_text,
                 "organ": organ,
                 "officer": officer,
+                "contact": case_info.contact or '',
                 "attachments": [
                     {"file_name": att.file_name, "download_url": att.download_url, "description": att.description}
                     for att in attachments
