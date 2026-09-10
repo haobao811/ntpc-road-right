@@ -221,7 +221,9 @@ def handle_file_message(event):
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.reply_message(
-                ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=f"處理檔案時發生錯誤：{str(e)}")])
+                ReplyMessageRequest(
+                    reply_token=event.reply_token, messages=[TextMessage(text=f"處理檔案時發生錯誤：{str(e)}")]
+                )
             )
 
 
@@ -233,7 +235,11 @@ def handle_sticker_message(event):
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text="收到您的貼圖！不過目前主要任務是接收路權圖檔與設定時間哦。\n(請傳送圖檔，或隨時輸入「取消」)")],
+                messages=[
+                    TextMessage(
+                        text="收到您的貼圖！不過目前主要任務是接收路權圖檔與設定時間哦。\n(請傳送圖檔，或隨時輸入「取消」)"
+                    )
+                ],
             )
         )
 
@@ -296,7 +302,9 @@ def handle_text_message(event):
     if user_id not in user_session_data or not user_session_data[user_id].get("image_path"):
         reply_text = "⚠️ 請先傳送路權圖檔（檔名設為完整地址）！\n(輸入〈查詢〉可查看歷史紀錄，輸入〈日曆〉可查看施工行事曆，輸入〈取消〉可重來)"
     else:
-        reply_text = "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入〈取消〉)"
+        reply_text = (
+            "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入〈取消〉)"
+        )
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -353,7 +361,9 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
             with ApiClient(configuration) as api_client:
                 line_bot_api = MessagingApi(api_client)
                 line_bot_api.push_message(
-                    PushMessageRequest(to=user_id, messages=[TextMessage(text="⚠️ 自動填表流程結束，但未確認到完成畫面。")])
+                    PushMessageRequest(
+                        to=user_id, messages=[TextMessage(text="⚠️ 自動填表流程結束，但未確認到完成畫面。")]
+                    )
                 )
         bot.close()
 
@@ -361,7 +371,9 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.push_message(
-                PushMessageRequest(to=user_id, messages=[TextMessage(text=f"❌ 執行 Selenium 自動填表時發生例外錯誤：\n{e})")])
+                PushMessageRequest(
+                    to=user_id, messages=[TextMessage(text=f"❌ 執行 Selenium 自動填表時發生例外錯誤：\n{e})")]
+                )
             )
     finally:
         if os.path.exists(image_path):
@@ -432,51 +444,61 @@ def api_history_more():
         if batch_df.empty:
             return jsonify({"success": True, "records": [], "has_more": False})
 
-        def process_row(row):
-            case_no = str(row["案件編號"])
-            query_code = str(row.get("查詢碼", ""))
-            status_text = "查詢中..."
-            attachments = []
-            organ = "-"
-            officer = "-"
-            case_info = None
+        records = []
+        for _, row in batch_df.iterrows():
+            records.append(
+                {
+                    "timestamp": row["時間"],
+                    "address": row["施工地址"],
+                    "start_time": row["開始時間"],
+                    "end_time": row["結束時間"],
+                    "case_no": str(row["案件編號"]),
+                    "query_code": str(row.get("查詢碼", "")),
+                }
+            )
 
-            if case_no and case_no != "未知" and query_code and query_code != "未知":
-                html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
-                if html_res:
-                    case_info = parse_case_query_result(html_res)
-                    status_text = case_info.status or "未知狀態"
-                    organ = case_info.organ or "-"
-                    officer = case_info.officer or "-"
-                    attachments = case_info.attachments
-                    append_status_log(case_no, status_text)
-
-            return {
-                "timestamp": row["時間"],
-                "address": row["施工地址"],
-                "start_time": row["開始時間"],
-                "end_time": row["結束時間"],
-                "case_no": case_no,
-                "query_code": query_code,
-                "status": status_text,
-                "organ": organ,
-                "officer": officer,
-                "contact": case_info.contact if case_info else "",
-                "attachments": [
-                    {"file_name": att.file_name, "download_url": att.download_url, "description": att.description}
-                    for att in attachments
-                    if att.title.startswith("附件檔案")
-                ],
-            }
-
-        rows_list = [row for _, row in batch_df.iterrows()]
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            records = list(executor.map(process_row, rows_list))
-
-        # 確保依據「時間」（申辦送出時間）由新到舊排序
-        records = sorted(records, key=lambda x: x["timestamp"], reverse=True)
         return jsonify({"success": True, "records": records, "has_more": has_more})
 
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route("/api/fetch-case-detail", methods=["POST"])
+def api_fetch_case_detail():
+    data = request.get_json() or {}
+    case_no = data.get("caseNo")
+    query_code = data.get("queryCode")
+
+    if not case_no or not query_code or case_no == "未知" or query_code == "未知":
+        return jsonify({"success": False, "message": "無效的案件編號或查詢碼"})
+
+    try:
+        html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
+        if not html_res:
+            return jsonify({"success": False, "message": "無法連線至政府查詢系統"})
+
+        case_info = parse_case_query_result(html_res)
+        status_text = case_info.status or "未知狀態"
+
+        # 同步寫入狀態日誌
+        append_status_log(case_no, status_text)
+
+        attachments = [
+            {"file_name": att.file_name, "download_url": att.download_url, "description": att.description}
+            for att in case_info.attachments
+            if att.title.startswith("附件檔案")
+        ]
+
+        return jsonify(
+            {
+                "success": True,
+                "status": status_text,
+                "organ": case_info.organ or "-",
+                "officer": case_info.officer or "-",
+                "contact": case_info.contact or "",
+                "attachments": attachments,
+            }
+        )
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 

@@ -47,7 +47,7 @@
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">載入中...</span>
                 </div>
-                <p class="text-muted mt-2" style="font-size: 0.9rem;">正在向政府網站即時查詢審核進度，請稍候...</p>
+                <p class="text-muted mt-2" style="font-size: 0.9rem;">正在載入歷史紀錄，請稍候...</p>
             </div>
         </div>
 
@@ -78,7 +78,7 @@
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">載入中...</span>
                     </div>
-                    <p class="text-muted mt-2" style="font-size: 0.9rem;">正在搜尋並查詢審核進度，請稍候...</p>
+                    <p class="text-muted mt-2" style="font-size: 0.9rem;">正在搜尋...</p>
                 </div>
             `;
             document.getElementById("no-more-msg").style.display = "none";
@@ -88,26 +88,11 @@
 
         function resetSearch() {
             document.getElementById("search-input").value = "";
-            currentOffset = 0; // 重置偏移量
-            document.getElementById("message-container").innerHTML = "";
-            document.getElementById("records-container").innerHTML = `
-                <div id="loading-spinner" class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">載入中...</span>
-                    </div>
-                    <p class="text-muted mt-2" style="font-size: 0.9rem;">正在向政府網站即時查詢審核進度，請稍候...</p>
-                </div>
-            `;
-            document.getElementById("no-more-msg").style.display = "none";
-            document.getElementById("action-buttons").style.display = "none";
-            loadRecords();
+            searchRecords();
         }
 
         function loadRecords() {
-            // 每次發送請求時，直接從輸入框取得最新的搜尋字串（即使剛載入時已輸入也能抓到）
             const currentSearch = document.getElementById("search-input").value.trim();
-
-            // 產生當前請求的序號
             const thisRequestSeq = ++requestSeq;
 
             const loadBtn = document.getElementById("load-more-btn");
@@ -119,7 +104,6 @@
             fetch(`/api/history-more?userId=${userId}&offset=${currentOffset}&search=${encodeURIComponent(currentSearch)}`)
                 .then(res => res.json())
                 .then(data => {
-                    // 關鍵防呆：如果這不是最新發出的請求，直接忽略，避免舊請求蓋掉新搜尋
                     if (thisRequestSeq !== requestSeq) return;
 
                     if (data.success) {
@@ -127,7 +111,6 @@
                         const actionButtons = document.getElementById("action-buttons");
                         actionButtons.style.display = "block";
 
-                        // 如果是從頭載入或重新搜尋 (offset=0)，清空舊卡片
                         if (currentOffset === 0) {
                             container.innerHTML = "";
                         }
@@ -141,43 +124,25 @@
                             return;
                         }
 
-                        data.records.forEach(item => {
-                            let badgeClass = "bg-secondary";
-                            if (item.status.includes("已結案")) badgeClass = "bg-success";
-                            else if (item.status.includes("辦理中")) badgeClass = "bg-warning text-dark";
-
-                            let attachmentsHtml = "";
-                            if (item.attachments && item.attachments.length > 0) {
-                                let attList = item.attachments.map(att => `
-                                    <li>
-                                        <a href="${att.download_url}" target="_blank">${att.file_name}</a>
-                                    </li>
-                                `).join("");
-
-                                attachmentsHtml = `
-                                    <hr class="my-2">
-                                    <div style="font-size: 0.85rem;">
-                                        <strong>📎 相關附件與公文：</strong>
-                                        <ul class="mb-0 ps-3">${attList}</ul>
-                                    </div>
-                                `;
-                            }
-
+                        data.records.forEach((item, index) => {
+                            const uniqueId = `record-${currentOffset}-${index}`;
                             const cardHtml = `
-                                <div class="card">
+                                <div class="card" id="${uniqueId}">
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <h5 class="card-title text-primary mb-0">📍 ${item.address}</h5>
-                                            <span class="badge ${badgeClass} badge-status">${item.status}</span>
+                                            <span class="badge bg-secondary badge-status status-badge">
+                                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>查詢中...
+                                            </span>
                                         </div>
                                         <p class="card-text text-muted mb-2" style="font-size: 0.85rem;">
                                             🕒 施工時間：${item.start_time} ~ ${item.end_time}<br>
                                             📌 案件編號：<code>${item.case_no}</code><br>
-                                            🏛️ 主辦機關：${item.organ}<br>
-                                            👤 承辦人員：${item.officer} <span class="text-muted">|</span> <i class="bi bi-telephone-fill text-secondary"></i> ${item.contact}
+                                            🏛️ 主辦機關：<span class="organ-field">-</span><br>
+                                            👤 承辦人員：<span class="officer-field">-</span> <span class="text-muted">|</span> <i class="bi bi-telephone-fill text-secondary"></i> <span class="contact-field">-</span>
                                         </p>
 
-                                        ${attachmentsHtml}
+                                        <div class="attachments-container"></div>
 
                                         <div class="text-end text-muted mt-2 pt-2 border-top" style="font-size: 0.75rem;">
                                             ⏱️ 申辦送出時間：${item.timestamp}
@@ -186,6 +151,9 @@
                                 </div>
                             `;
                             container.insertAdjacentHTML("beforeend", cardHtml);
+
+                            // 非同步動態載入該筆資料的政府狀態與附件
+                            fetchCaseDetail(item.case_no, item.query_code, uniqueId);
                         });
 
                         currentOffset += data.records.length;
@@ -217,6 +185,62 @@
                         loadBtn.disabled = false;
                         loadBtn.innerText = "📥 載入更多 (5筆)";
                     }
+                });
+        }
+
+        function fetchCaseDetail(caseNo, queryCode, cardId) {
+            const cardElement = document.getElementById(cardId);
+            if (!cardElement) return;
+
+            const statusBadge = cardElement.querySelector(".status-badge");
+            const organField = cardElement.querySelector(".organ-field");
+            const officerField = cardElement.querySelector(".officer-field");
+            const contactField = cardElement.querySelector(".contact-field");
+            const attachmentsContainer = cardElement.querySelector(".attachments-container");
+
+            fetch('/api/fetch-case-detail', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caseNo: caseNo, queryCode: queryCode })
+            })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        let badgeClass = "bg-secondary";
+                        if (res.status.includes("已結案")) badgeClass = "bg-success";
+                        else if (res.status.includes("辦理中")) badgeClass = "bg-warning text-dark";
+
+                        statusBadge.className = `badge ${badgeClass} badge-status`;
+                        statusBadge.innerText = res.status;
+
+                        organField.innerText = res.organ;
+                        officerField.innerText = res.officer;
+                        contactField.innerText = res.contact || "-";
+
+                        if (res.attachments && res.attachments.length > 0) {
+                            let attList = res.attachments.map(att => `
+                            <li>
+                                <a href="${att.download_url}" target="_blank">${att.file_name}</a>
+                            </li>
+                        `).join("");
+
+                            attachmentsContainer.innerHTML = `
+                            <hr class="my-2">
+                            <div style="font-size: 0.85rem;">
+                                <strong>📎 相關附件與公文：</strong>
+                                <ul class="mb-0 ps-3">${attList}</ul>
+                            </div>
+                        `;
+                        }
+                    } else {
+                        statusBadge.className = "badge bg-danger badge-status";
+                        statusBadge.innerText = "查詢失敗";
+                    }
+                })
+                .catch(err => {
+                    console.error("即時查詢失敗:", err);
+                    statusBadge.className = "badge bg-danger badge-status";
+                    statusBadge.innerText = "連線異常";
                 });
         }
     </script>
