@@ -6,7 +6,7 @@ import os
 import re
 import tempfile
 import threading
-from concurrent.futures import ThreadPoolExecutor
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -481,6 +481,11 @@ def api_history_more():
         return jsonify({"success": False, "message": str(e)})
 
 
+# 用於儲存詳細資訊快取：格式為 { case_no: {"timestamp": 取得時間, "data": 回傳的字典內容} }
+detail_cache = {}
+DETAIL_CACHE_TTL = 60  # 快取有效時間（秒）
+
+
 @app.route("/api/fetch-case-detail", methods=["POST"])
 def api_fetch_case_detail():
     data = request.get_json() or {}
@@ -489,6 +494,14 @@ def api_fetch_case_detail():
 
     if not case_no or not query_code or case_no == "未知" or query_code == "未知":
         return jsonify({"success": False, "message": "無效的案件編號或查詢碼"})
+
+    current_time = time.time()
+
+    # 檢查是否有快取且未過期（60秒內）
+    if case_no in detail_cache:
+        cached_item = detail_cache[case_no]
+        if current_time - cached_item["timestamp"] < DETAIL_CACHE_TTL:
+            return jsonify(cached_item["data"])
 
     try:
         html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
@@ -507,16 +520,23 @@ def api_fetch_case_detail():
             if att.title.startswith("附件檔案")
         ]
 
-        return jsonify(
-            {
-                "success": True,
-                "status": status_text,
-                "organ": case_info.organ or "-",
-                "officer": case_info.officer or "-",
-                "contact": case_info.contact or "",
-                "attachments": attachments,
-            }
-        )
+        result_data = {
+            "success": True,
+            "status": status_text,
+            "organ": case_info.organ or "-",
+            "officer": case_info.officer or "-",
+            "contact": case_info.contact or "",
+            "attachments": attachments,
+        }
+
+        # 寫入快取與當前時間戳記
+        detail_cache[case_no] = {
+            "timestamp": current_time,
+            "data": result_data
+        }
+
+        return jsonify(result_data)
+
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
@@ -598,13 +618,26 @@ def api_calendar_events():
         return jsonify([])
 
 
+# 用於儲存狀態快取：格式為 { case_no: {"timestamp": 取得時間, "data": 回傳的字典內容} }
+status_cache = {}
+CACHE_TTL = 60  # 快取有效時間（秒）
+
+
 @app.route("/api/fetch-case-status", methods=["POST"])
 def api_fetch_case_status():
-    """專門提供前端非同步動態載入與更新單一案件狀態用"""
+    """專門提供前端非同步動態載入與更新單一案件狀態用（帶有 1 分鐘快取）"""
     data = request.json or {}
     case_no = data.get("caseNo")
     if not case_no:
         return jsonify({"success": False, "message": "缺少案件編號"})
+
+    current_time = time.time()
+
+    # 檢查是否有快取且未過期（60秒內）
+    if case_no in status_cache:
+        cached_item = status_cache[case_no]
+        if current_time - cached_item["timestamp"] < CACHE_TTL:
+            return jsonify(cached_item["data"])
 
     try:
         if not os.path.exists(LOG_CSV_FILE):
@@ -628,7 +661,13 @@ def api_fetch_case_status():
                 append_status_log(case_no, status_text)
 
         color = "#198754" if "已結案" in status_text else "#ffc107"
-        return jsonify({"success": True, "status": status_text, "color": color, "title": f"{address} ({status_text})"})
+        result_data = {"success": True, "status": status_text, "color": color, "title": f"{address} ({status_text})"}
+
+        # 寫入快取與當前時間戳記
+        status_cache[case_no] = {"timestamp": current_time, "data": result_data}
+
+        return jsonify(result_data)
+
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
