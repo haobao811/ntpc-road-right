@@ -63,17 +63,15 @@
 
     <script>
         let currentOffset = 0;
-        let currentSearch = "";
+        let requestSeq = 0; // 用於防止競態條件（Race Condition）
         const userId = "{{ user_id }}";
 
-        // 頁面載入後立即發送第一次 API 請求 (offset=0)
         document.addEventListener("DOMContentLoaded", () => {
             loadRecords();
         });
 
         function searchRecords() {
-            currentSearch = document.getElementById("search-input").value.trim();
-            currentOffset = 0;
+            currentOffset = 0; // 重置偏移量
             document.getElementById("message-container").innerHTML = "";
             document.getElementById("records-container").innerHTML = `
                 <div id="loading-spinner" class="text-center py-5">
@@ -90,8 +88,7 @@
 
         function resetSearch() {
             document.getElementById("search-input").value = "";
-            currentSearch = "";
-            currentOffset = 0;
+            currentOffset = 0; // 重置偏移量
             document.getElementById("message-container").innerHTML = "";
             document.getElementById("records-container").innerHTML = `
                 <div id="loading-spinner" class="text-center py-5">
@@ -107,6 +104,12 @@
         }
 
         function loadRecords() {
+            // 每次發送請求時，直接從輸入框取得最新的搜尋字串（即使剛載入時已輸入也能抓到）
+            const currentSearch = document.getElementById("search-input").value.trim();
+
+            // 產生當前請求的序號
+            const thisRequestSeq = ++requestSeq;
+
             const loadBtn = document.getElementById("load-more-btn");
             if (loadBtn) {
                 loadBtn.disabled = true;
@@ -116,15 +119,15 @@
             fetch(`/api/history-more?userId=${userId}&offset=${currentOffset}&search=${encodeURIComponent(currentSearch)}`)
                 .then(res => res.json())
                 .then(data => {
-                    // 移除初次載入或搜尋時的轉圈圈動畫
-                    const spinner = document.getElementById("loading-spinner");
-                    if (spinner) spinner.remove();
+                    // 關鍵防呆：如果這不是最新發出的請求，直接忽略，避免舊請求蓋掉新搜尋
+                    if (thisRequestSeq !== requestSeq) return;
 
                     if (data.success) {
                         const container = document.getElementById("records-container");
                         const actionButtons = document.getElementById("action-buttons");
                         actionButtons.style.display = "block";
 
+                        // 如果是從頭載入或重新搜尋 (offset=0)，清空舊卡片
                         if (currentOffset === 0) {
                             container.innerHTML = "";
                         }
@@ -199,13 +202,21 @@
                         }
                     } else {
                         alert("載入資料發生錯誤：" + data.message);
+                        if (loadBtn) {
+                            loadBtn.disabled = false;
+                            loadBtn.innerText = "📥 載入更多 (5筆)";
+                        }
                     }
                 })
                 .catch(err => {
+                    if (thisRequestSeq !== requestSeq) return;
                     console.error(err);
-                    const spinner = document.getElementById("loading-spinner");
-                    if (spinner) spinner.remove();
                     alert("網路連線失敗，請稍後再試");
+                    const loadBtn = document.getElementById("load-more-btn");
+                    if (loadBtn) {
+                        loadBtn.disabled = false;
+                        loadBtn.innerText = "📥 載入更多 (5筆)";
+                    }
                 });
         }
     </script>
