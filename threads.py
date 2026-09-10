@@ -55,7 +55,7 @@ class AsyncProcessThread(QThread):
 
 
 class SeleniumThread(QThread):
-    success_signal = pyqtSignal()
+    success_signal = pyqtSignal(object)  # 傳遞 record 物件
     error_signal = pyqtSignal(str)
 
     def __init__(self, apply_info: DynamicApplyInfo):
@@ -65,8 +65,13 @@ class SeleniumThread(QThread):
     def run(self):
         try:
             bot = AutoFillForm()
-            # 當 auto_fill_form 執行完畢且完成 Log 記錄、瀏覽器關閉後會返回 True
-            if bot.auto_fill_form(self.apply_info):
-                self.success_signal.emit()
+            # 傳入 "LOCAL_USER" 代表是從桌面 UI 本地端執行的
+            success = bot.auto_fill_form(self.apply_info)
+
+            if success and hasattr(bot, "completion_record"):
+                self.success_signal.emit(bot.completion_record)
+            else:
+                self.error_signal.emit("未能確認到完成畫面")
+            bot.close()
         except Exception as e:
             self.error_signal.emit(str(e))

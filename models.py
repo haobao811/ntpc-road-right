@@ -4,7 +4,7 @@
 
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -105,3 +105,17 @@ class DynamicApplyInfo:
             "９": "9",
         }
         return "".join(char_map.get(ch, ch) for ch in input_str)
+
+
+@dataclass
+class ApplicationResultRecord:
+    timestamp: str
+    user_id: str
+    address: str
+    start_time: str
+    end_time: str
+    case_no: str
+    query_code: str
+
+    def to_dict(self):
+        return asdict(self)

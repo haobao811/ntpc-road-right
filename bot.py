@@ -2,14 +2,12 @@
 Selenium 自動化表單填寫與 Tesseract OCR 驗證碼處理模組
 """
 
-import io
+import ocr
 import logging
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
-import pytesseract
 from bs4 import BeautifulSoup
-from PIL import Image
 from selenium import webdriver
 from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.common.by import By
@@ -189,10 +187,10 @@ class AutoFillForm:
             time.sleep(1)
             img_element = self.wait.until(EC.visibility_of_element_located((By.ID, "authImage")))
 
-        img = Image.open(io.BytesIO(img_element.screenshot_as_png)).convert("L")
-        img = img.point(lambda p: 255 if p > 150 else 0)
-        code_text = pytesseract.image_to_string(img, config=r"--psm 8 -c tessedit_char_whitelist=0123456789").strip()
-        logger.info("辨識到的驗證碼為: %s", code_text)
+        captcha_img = img_element.screenshot_as_png
+        img_bytes = captcha_img.screenshot_as_png
+        code_text, elapsed = ocr.solve(img_bytes)
+        logger.info(f"🤖 本地 AI 辨識結果: [{code_text}] (耗時 {elapsed:.3f} 秒)")
 
         auth_input = self.wait.until(EC.presence_of_element_located((By.ID, "atuh_gCode")))
         auth_input.clear()
@@ -286,8 +284,8 @@ class AutoFillForm:
         logger.warning("等待使用者關閉彈出視窗超時。")
         return False
 
-    def parse_completion_and_log(self, log_file="application_success.log", timeout: int = 60 * 60 * 24):
-        """等待完成畫面出現，透過 BeautifulSoup 解析申請日期、案件編號、案件查詢碼並寫入 Log"""
+    def parse_completion_and_log(self, timeout: int = 60 * 60 * 24):
+        """等待完成畫面出現，透過 BeautifulSoup 解析申請日期、案件編號、案件查詢碼"""
         try:
             logger.info("等待使用者完成最後步驟與跳出完成畫面...")
             long_wait = WebDriverWait(self.driver, timeout)
@@ -312,15 +310,13 @@ class AutoFillForm:
             case_no = result_data.get("案件編號", "未知")
             query_code = result_data.get("案件查詢碼", "未知")
 
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            log_message = f"[{timestamp}] 申辦成功！ | 申請日期: {app_date} | 案件編號: {case_no} | 案件查詢碼: {query_code} | {self.apply_info.to_dict()}"
-
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(log_message + "\n")
-
-            logger.info(f"已成功紀錄至本地日誌: {log_message}")
-            self.log = log_message
+            # 將結果暫存於物件屬性中，讓外部可以取用
+            self.completion_result = {
+                "app_date": app_date,
+                "case_no": case_no,
+                "query_code": query_code
+            }
             return True
         except Exception as e:
-            logger.error(f"解析完成畫面或寫入 Log 失敗: {e}")
+            logger.error(f"解析完成畫面失敗: {e}")
             return False

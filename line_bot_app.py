@@ -2,16 +2,13 @@
 新北市路權申請 LINE Bot 整合主程式 (LIFF 網頁時間選擇版 + v3 正確引用版)
 """
 
-import logging
 import os
 import re
-import subprocess
 import tempfile
 import threading
 from datetime import datetime
 from pathlib import Path
 
-import pytesseract
 from flask import Flask, abort, jsonify, render_template, request
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
@@ -35,7 +32,8 @@ from linebot.v3.webhooks import (
 
 # 導入你原本寫好的核心模組
 from bot import AutoFillForm
-from models import DynamicApplyInfo
+from history_logger import get_user_application_history, save_application_log
+from models import ApplicationResultRecord, DynamicApplyInfo
 
 app = Flask(__name__)
 
@@ -198,9 +196,7 @@ def handle_file_message(event):
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.reply_message(
-                ReplyMessageRequest(
-                    reply_token=event.reply_token, messages=[TextMessage(text=f"處理檔案時發生錯誤：{str(e)}")]
-                )
+                ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=f"處理檔案時發生錯誤：{str(e)}")])
             )
 
 
@@ -212,11 +208,7 @@ def handle_sticker_message(event):
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[
-                    TextMessage(
-                        text="收到您的貼圖！不過目前主要任務是接收路權圖檔與設定時間哦。\n(請傳送圖檔，或隨時輸入「取消」)"
-                    )
-                ],
+                messages=[TextMessage(text="收到您的貼圖！不過目前主要任務是接收路權圖檔與設定時間哦。\n(請傳送圖檔，或隨時輸入「取消」)")],
             )
         )
 
@@ -227,6 +219,7 @@ def handle_text_message(event):
     user_id = event.source.user_id
     text = event.message.text.strip().lower()
 
+    # 1. 處理取消指令
     if text in ["取消", "重來", "reset", "clear"]:
         if user_id in user_session_data:
             old_path = user_session_data[user_id].get("image_path")
@@ -247,10 +240,24 @@ def handle_text_message(event):
             )
         return
 
+    # 2. 新增：處理查詢歷史紀錄指令
+    if text in ["查詢", "紀錄", "歷史", "history", "log"]:
+        history_text = get_user_application_history(user_id=None)
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=history_text)],
+                )
+            )
+        return
+
+    # 3. 原有的檔案狀態判斷
     if user_id not in user_session_data or not user_session_data[user_id].get("image_path"):
-        reply_text = "⚠️ 請先傳送路權圖檔（檔名設為完整地址）！\n(若想重新開始，可隨時輸入「取消」)"
+        reply_text = "⚠️ 請先傳送路權圖檔（檔名設為完整地址）！\n(輸入「查詢」可查看歷史紀錄，輸入「取消」可重來)"
     else:
-        reply_text = "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接**重新傳送新檔案**或輸入「取消」)"
+        reply_text = "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入「取消」)"
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -259,7 +266,7 @@ def handle_text_message(event):
         )
 
 
-def run_selenium_background_task(user_id, address, start_dt, duration, image_path):
+def run_selenium_background_task(user_id, address, start_dt: datetime, duration, image_path):
     """背景執行 Selenium 自動化填表核心"""
     try:
         apply_info = DynamicApplyInfo(
@@ -268,42 +275,54 @@ def run_selenium_background_task(user_id, address, start_dt, duration, image_pat
 
         bot = AutoFillForm()
         success = bot.auto_fill_form(apply_info, ask_user=False)
-        bot.close()
 
-        # 計算結束時間與總時長（小時）
-        end_dt = start_dt + duration
-        duration_hours = int(duration.total_seconds() / 3600)
+        # 假設 bot 執行成功且已經抓取到完成結果
+        if success and hasattr(bot, "completion_result"):
+            res = bot.completion_result
+            end_dt = start_dt + duration
 
-        with ApiClient(configuration) as api_client:
-            line_bot_api = MessagingApi(api_client)
-            if success:
-                success_text = (
-                    f"🎉 【申辦成功】您的新北市路權申請表單已自動填寫完畢！\n\n"
-                    f"📍 施工地址：{address}\n"
-                    f"🕒 開始時間：{start_dt.strftime('%Y-%m-%d %H:%M')}\n"
-                    f"⏱️ 施工時長：{duration_hours} 小時\n"
-                    f"🏁 結束時間：{end_dt.strftime('%Y-%m-%d %H:%M')}\n\n"
-                    f"📋 執行日誌：\n{bot.log}"
-                )
-                # 正確的 v3 寫法：只傳入一個 PushMessageRequest 物件（包好了 to 與 messages）
+            # 建立實例化 Model
+            record = ApplicationResultRecord(
+                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                user_id=user_id,
+                address=address,
+                start_time=start_dt.strftime("%Y-%m-%d %H:%M"),
+                end_time=end_dt.strftime("%Y-%m-%d %H:%M"),
+                case_no=res.get("case_no", "未知"),
+                query_code=res.get("query_code", "未知"),
+            )
+
+            # 寫入 CSV 紀錄
+            save_application_log(record)
+
+            # 組合成功訊息推送給使用者
+            duration_hours = int(duration.total_seconds() / 3600)
+            success_text = (
+                f"🎉 【申辦成功】您的新北市路權申請表單已自動填寫完畢！\n\n"
+                f"📍 施工地址：{address}\n"
+                f"🕒 開始時間：{start_dt.strftime('%Y-%m-%d %H:%M')}\n"
+                f"⏱️ 施工時長：{duration_hours} 小時\n"
+                f"🏁 結束時間：{end_dt.strftime('%Y-%m-%d %H:%M')}\n"
+                f"📌 案件編號：{record.case_no}\n"
+                f"🔑 查詢碼：{record.query_code}\n"
+            )
+
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
                 line_bot_api.push_message(PushMessageRequest(to=user_id, messages=[TextMessage(text=success_text)]))
-            else:
+        else:
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
                 line_bot_api.push_message(
-                    PushMessageRequest(
-                        to=user_id,
-                        messages=[
-                            TextMessage(text="⚠️ 自動填表流程結束，但未確認到完成畫面，請至日誌或主機畫面檢查。")
-                        ],
-                    )
+                    PushMessageRequest(to=user_id, messages=[TextMessage(text="⚠️ 自動填表流程結束，但未確認到完成畫面。")])
                 )
+        bot.close()
 
     except Exception as e:
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.push_message(
-                PushMessageRequest(
-                    to=user_id, messages=[TextMessage(text=f"❌ 執行 Selenium 自動填表時發生例外錯誤：\n{e}")]
-                )
+                PushMessageRequest(to=user_id, messages=[TextMessage(text=f"❌ 執行 Selenium 自動填表時發生例外錯誤：\n{e})")])
             )
     finally:
         if os.path.exists(image_path):
@@ -313,35 +332,5 @@ def run_selenium_background_task(user_id, address, start_dt, duration, image_pat
                 pass
 
 
-def auto_install_tesseract():
-    """當偵測到系統未安裝 Tesseract 時，嘗試自動呼叫系統指令進行靜默安裝"""
-    logging.info("嘗試自動安裝 Tesseract-OCR")
-    try:
-        # 透過 winget 自動安裝
-        cmd = "winget install UB-Mannheim.TesseractOCR --accept-package-agreements --accept-source-agreements"
-        subprocess.check_call(cmd, shell=True)
-    except Exception as e:
-        logging.error(f"自動安裝 Tesseract 失敗: {e}")
-        return False
-
-
 if __name__ == "__main__":
-    default_install_dir = r"C:\Program Files\Tesseract-OCR"
-    tesseract_exe = os.path.join(default_install_dir, "tesseract.exe")
-
-    # 1. 檢查預設路徑是否存在，若不存在或無法調用則嘗試自動安裝
-    if not os.path.isfile(tesseract_exe):
-        print("未偵測到 Tesseract-OCR，正在嘗試自動安裝...")
-        auto_install_tesseract()
-
-    # 2. 再次嘗試設定路徑並驗證
-    try:
-        if os.path.isfile(tesseract_exe):
-            pytesseract.pytesseract.tesseract_cmd = tesseract_exe
-
-        pytesseract.get_tesseract_version()
-        print("Tesseract-OCR 檢查通過，準備啟動 Flask 伺服器...")
-    except pytesseract.TesseractNotFoundError:
-        print("⚠️ 警告：無法自動安裝或找到 Tesseract，圖片文字辨識功能可能無法運作。")
-
     app.run(port=5000, debug=True)

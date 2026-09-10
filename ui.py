@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (
 from config import HTML_CONTENT, LOC_COORDINATES, WEEKDAYS_ZH
 from gis import get_coordinates_by_address
 from map_bridge import MapBridge
-from models import DynamicApplyInfo
+from models import DynamicApplyInfo, ApplicationResultRecord
 from threads import AsyncProcessThread, PreloadChiefDataThread, SeleniumThread
 
 logger = logging.getLogger(__name__)
@@ -1059,6 +1059,21 @@ class IntegratedApp(QtWidgets.QMainWindow):
         self.btn_next.setEnabled(True)
         self.update_progress_header()
 
-    def on_submission_success(self):
-        show_elder_warning(self, "申辦完成", "表單已成功送達並完成日誌記錄！瀏覽器已自動關閉。")
+    def on_submission_success(self, record: ApplicationResultRecord):
+        msg_text = (
+            f"表單已成功送達並完成日誌記錄！\n\n"
+            f"📍 地址：{record.address}\n"
+            f"📌 案件編號：{record.case_no}\n"
+            f"🔑 案件查詢碼：{record.query_code}\n"
+            f"瀏覽器已自動關閉。"
+        )
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_message = f"[{timestamp}] 申辦成功！ | 案件編號: {record.case_no} | 案件查詢碼: {record.query_code} | {record.to_dict()}"
+
+        with open("application_success.log", "a", encoding="utf-8") as f:
+            f.write(log_message + "\n")
+            logger.info(f"已成功紀錄至本地日誌: {log_message}")
+
+        show_elder_warning(self, "申辦完成", msg_text)
         self.reset_form_completely(ask=False)
