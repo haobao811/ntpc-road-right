@@ -155,6 +155,22 @@ def handle_file_message(event):
     message_id = event.message.id
 
     try:
+        original_filename = getattr(event.message, "file_name", "")
+        stem_name = Path(original_filename).stem
+        clean_addr = re.sub(r"\(\d+\)$", "", stem_name).strip()
+
+        # 處理沒有檔案地址（或圖片未帶檔名）的情況
+        if not clean_addr:
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
+                line_bot_api.reply_message(
+                    ReplyMessageRequest(
+                        reply_token=event.reply_token,
+                        messages=[TextMessage(text="⚠️ 無法識別檔名中的地址！若為檔案請確保檔名包含施工地址。")],
+                    )
+                )
+            return
+
         if user_id in user_session_data:
             old_path = user_session_data[user_id].get("image_path")
             if old_path and os.path.exists(old_path):
