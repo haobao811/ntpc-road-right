@@ -310,11 +310,7 @@ class AutoFillForm:
             query_code = result_data.get("案件查詢碼", "未知")
 
             # 將結果暫存於物件屬性中，讓外部可以取用
-            self.completion_result = {
-                "app_date": app_date,
-                "case_no": case_no,
-                "query_code": query_code
-            }
+            self.completion_result = {"app_date": app_date, "case_no": case_no, "query_code": query_code}
             return True
         except Exception as e:
             logger.error(f"解析完成畫面失敗: {e}")
