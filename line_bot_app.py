@@ -274,7 +274,7 @@ def handle_text_message(event):
 
     # 2. 新增：處理查詢歷史紀錄指令
     if text in ["查詢", "紀錄", "歷史", "history", "log"]:
-        my_history_url = f"{NGROK_BASE_URL.rstrip('/')}/history-view?userId={user_id}"
+        my_history_url = f"{NGROK_BASE_URL.rstrip('/')}/history-view"
 
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
@@ -287,7 +287,7 @@ def handle_text_message(event):
         return
 
     if text in ["日曆", "行事曆", "calendar"]:
-        my_calendar_url = f"{NGROK_BASE_URL.rstrip('/')}/calendar-view?userId={user_id}"
+        my_calendar_url = f"{NGROK_BASE_URL.rstrip('/')}/calendar-view"
 
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
