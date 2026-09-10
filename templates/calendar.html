@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>路權施工排程行事曆</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FullCalendar CSS -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 15px;
+        }
+
+        #calendar {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h3 class="mb-4 text-center">📅 施工排程行事曆</h3>
+        <div id='calendar'></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var userId = "{{ user_id }}";
+
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                locale: 'zh-tw',
+                events: `/api/calendar-events?userId=${userId}`,
+                eventClick: function(info) {
+                    alert(`📍 施工地點: ${info.event.title}\n📌 案件編號: ${info.event.extendedProps.caseNo}\n🕒 時間: ${info.event.start.toLocaleString()} ~ ${info.event.end ? info.event.end.toLocaleString() : '未定'}`);
+                }
+            });
+            calendar.render();
+        });
+    </script>
+</body>
+
+</html>

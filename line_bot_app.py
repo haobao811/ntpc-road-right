@@ -2,11 +2,11 @@
 新北市路權申請 LINE Bot 整合主程式 (LIFF 網頁時間選擇版 + v3 正確引用版)
 """
 
-from concurrent.futures import ThreadPoolExecutor
 import os
 import re
 import tempfile
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -38,6 +38,7 @@ from history_logger import (
     LOG_CSV_FILE,
     append_status_log,
     save_application_log,
+    get_latest_statuses_for_batch,
 )
 from models import ApplicationResultRecord, DynamicApplyInfo
 from search import parse_case_query_result, query_case_with_local_ocr
@@ -286,10 +287,10 @@ def handle_text_message(event):
 
     # 3. 原有的檔案狀態判斷
     if user_id not in user_session_data or not user_session_data[user_id].get("image_path"):
-        reply_text = "⚠️ 請先傳送路權圖檔（檔名設為完整地址）！\n(輸入「查詢」可查看歷史紀錄，輸入「取消」可重來)"
+        reply_text = "⚠️ 請先傳送路權圖檔（檔名設為完整地址）！\n(輸入〈查詢〉可查看歷史紀錄，輸入〈取消〉可重來)"
     else:
         reply_text = (
-            "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入「取消」)"
+            "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入〈取消〉)"
         )
 
     with ApiClient(configuration) as api_client:
@@ -375,6 +376,36 @@ def history_view():
     return render_template("history.html")
 
 
+def get_or_fetch_case_status(row):
+    """
+    檢查 status_history.csv 是否已有狀態；
+    若無或需即時更新，則透過本地 OCR 與政府 API 查詢，並寫入 status_history.csv。
+    """
+    case_no = str(row["案件編號"])
+    query_code = str(row.get("查詢碼", ""))
+
+    # 先試著從 status_history.csv 抓取最新狀態
+    latest_map = get_latest_statuses_for_batch([case_no])
+    if case_no in latest_map and latest_map[case_no]:
+        return latest_map[case_no]
+
+    # 如果 status log 裡面沒有，且有合法的案件編號與查詢碼，則即時爬蟲查詢
+    status_text = "查詢中..."
+    if case_no and case_no != "未知" and query_code and query_code != "未知":
+        html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
+        if html_res:
+            case_info = parse_case_query_result(html_res)
+            status_text = case_info.status or "未知狀態"
+            # 寫入狀態歷史日誌
+            append_status_log(case_no, status_text)
+        else:
+            status_text = "查詢失敗"
+    else:
+        status_text = "無效編號"
+
+    return status_text
+
+
 @app.route("/api/history-more", methods=["GET"])
 def api_history_more():
     user_id = request.args.get("userId")
@@ -429,7 +460,7 @@ def api_history_more():
                 "status": status_text,
                 "organ": organ,
                 "officer": officer,
-                "contact": case_info.contact if case_info else '',
+                "contact": case_info.contact if case_info else "",
                 "attachments": [
                     {"file_name": att.file_name, "download_url": att.download_url, "description": att.description}
                     for att in attachments
@@ -447,6 +478,92 @@ def api_history_more():
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
+
+
+@app.route("/calendar-view")
+def calendar_view():
+    user_id = request.args.get("userId", "")
+    return render_template("calendar.html", user_id=user_id)
+
+
+@app.route("/api/calendar-events", methods=["GET"])
+def api_calendar_events():
+    if not os.path.exists(LOG_CSV_FILE):
+        return jsonify([])
+
+    try:
+        df = pd.read_csv(LOG_CSV_FILE, encoding="utf-8-sig")
+        if df.empty:
+            return jsonify([])
+
+        # 1. 取得 FullCalendar 自動傳入的顯示區間 (格式通常為 YYYY-MM-DD)
+        start_range = request.args.get("start")
+        end_range = request.args.get("end")
+
+        # 2. 如果有帶入區間，可針對「開始時間」進行初步篩選，減少不必要的運算
+        if start_range and end_range:
+            df["開始時間"] = pd.to_datetime(df["開始時間"], errors="coerce")
+            start_dt = pd.to_datetime(start_range)
+            end_dt = pd.to_datetime(end_range)
+
+            # 過濾落在當前檢視區間內的施工案件
+            df = df[(df["開始時間"] >= start_dt) & (df["開始時間"] <= end_dt)]
+
+        if df.empty:
+            return jsonify([])
+
+        # 3. 批次取得篩選後案件的最新狀態 (從 status_history.csv join)
+        case_nos = df["案件編號"].dropna().astype(str).tolist()
+        latest_status_map = get_latest_statuses_for_batch(case_nos)
+
+        events = []
+        rows_to_fetch = []
+
+        for _, row in df.iterrows():
+            case_no = str(row["案件編號"])
+            status = latest_status_map.get(case_no)
+
+            # 把時間轉回字串格式供前端渲染
+            start_str = pd.to_datetime(row["開始時間"]).strftime("%Y-%m-%d %H:%M")
+            end_str = str(row["結束時間"])
+
+            if not status:
+                rows_to_fetch.append((row, start_str, end_str))
+            else:
+                color = "#198754" if "已結案" in status else "#ffc107"
+                events.append({
+                    "title": f"{row['施工地址']} ({status})",
+                    "start": start_str,
+                    "end": end_str,
+                    "backgroundColor": color,
+                    "borderColor": color,
+                    "extendedProps": {"caseNo": case_no, "organ": row.get("organ", "-")},
+                })
+
+        # 4. 針對區間內缺少狀態的案件進行即時補查
+        if rows_to_fetch:
+            def fetch_missing(item):
+                row, start_str, end_str = item
+                status = get_or_fetch_case_status(row)
+                case_no = str(row["案件編號"])
+                color = "#198754" if "已結案" in status else "#ffc107"
+                return {
+                    "title": f"{row['施工地址']} ({status})",
+                    "start": start_str,
+                    "end": end_str,
+                    "backgroundColor": color,
+                    "borderColor": color,
+                    "extendedProps": {"caseNo": case_no, "organ": row.get("organ", "-")},
+                }
+
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                fetched_events = list(executor.map(fetch_missing, rows_to_fetch))
+                events.extend(fetched_events)
+
+        return jsonify(events)
+    except Exception as e:
+        print(f"❌ 讀取行事曆事件失敗: {e}")
+        return jsonify([])
 
 
 if __name__ == "__main__":

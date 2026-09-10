@@ -72,3 +72,31 @@ def get_latest_status_by_case(case_no: str) -> str:
     except Exception as e:
         print(f"❌ 讀取狀態日誌失敗: {e}")
         return ""
+
+
+def get_latest_statuses_for_batch(case_nos: list) -> dict:
+    """傳入一組案件編號清單，從 status_history.csv 中撈取每個案件時間最晚的一筆狀態"""
+    if not os.path.exists(STATUS_LOG_FILE):
+        return {}
+
+    try:
+        df = pd.read_csv(STATUS_LOG_FILE, encoding="utf-8-sig")
+        if df.empty or "案件編號" not in df.columns:
+            return {}
+
+        df["案件編號"] = df["案件編號"].astype(str)
+        # 只篩選出目前清單內的案件編號
+        matched = df[df["案件編號"].isin([str(c) for c in case_nos])]
+
+        if matched.empty:
+            return {}
+
+        # 依時間由舊到新排序，並保留每個案件編號的最後一筆（最新狀態）
+        matched = matched.sort_values("時間")
+        latest_df = matched.drop_duplicates(subset=["案件編號"], keep="last")
+
+        # 回傳 {"案件編號": "最新狀態"} 的對應字典
+        return dict(zip(latest_df["案件編號"], latest_df["案件狀態"]))
+    except Exception as e:
+        print(f"❌ 批次讀取狀態日誌失敗: {e}")
+        return {}
