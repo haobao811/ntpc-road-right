@@ -40,11 +40,17 @@
 
 <body>
     <div class="container" style="max-width: 600px;">
-        <h3 class="mb-4 text-center">📋 歷史申請與審核進度</h3>
+        <!-- 頂部標題與功能切換按鈕 -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">📋 歷史申請與審核進度</h3>
+            <a href="/calendar-view" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-calendar-date"></i> 日曆檢視
+            </a>
+        </div>
 
         <!-- 地址搜尋列 -->
         <div class="input-group mb-4">
-            <input type="text" id="search-input" class="form-control" placeholder="輸入施工地址關鍵字（例如：板橋區）"
+            <input type="text" id="search-input" class="form-control" placeholder="輸入施工地址關鍵字或案件編號"
                 onkeydown="if(event.key==='Enter') searchRecords()">
             <button class="btn btn-outline-primary" type="button" onclick="searchRecords()">🔍 搜尋</button>
             <button class="btn btn-outline-secondary" type="button" onclick="resetSearch()">重置</button>
