@@ -13,6 +13,20 @@
             padding-top: 20px;
             padding-bottom: 20px;
         }
+		
+		.page-title {
+			font-weight: 700;
+			color: #2c3e50;
+			margin-bottom: 0;
+			font-size: 1.2rem;
+			letter-spacing: -0.5px;
+		}
+
+		@media (min-width: 768px) {
+			.page-title {
+				font-size: 1.75rem;
+			}
+		}
 
         .card {
             margin-bottom: 15px;
@@ -42,7 +56,7 @@
     <div class="container" style="max-width: 600px;">
         <!-- 頂部標題與功能切換按鈕 -->
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="mb-0">📋 歷史申請與審核進度</h3>
+            <h3 class="page-title">📋 歷史申請與審核進度</h3>
             <a href="/calendar-view" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-calendar-date"></i> 日曆檢視
             </a>
