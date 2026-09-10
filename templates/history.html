@@ -29,52 +29,130 @@
     <div class="container" style="max-width: 600px;">
         <h3 class="mb-4 text-center">📋 歷史申請與審核進度</h3>
 
-        {% if message %}
-        <div class="alert alert-info text-center">{{ message }}</div>
-        {% endif %}
+        <!-- 訊息提示區塊 -->
+        <div id="message-container"></div>
 
-        {% for item in records %}
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="card-title text-primary mb-0">📍 {{ item.address }}</h5>
-                    <span class="badge
-                    {% if '已結案' in item.status %}bg-success
-                    {% elif '辦理中' in item.status %}bg-warning text-dark
-                    {% else %}bg-secondary{% endif %} badge-status">
-                        {{ item.status }}
-                    </span>
+        <!-- 資料動態渲染區塊 -->
+        <div id="records-container">
+            <div id="loading-spinner" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">載入中...</span>
                 </div>
-
-                <p class="card-text text-muted mb-2" style="font-size: 0.85rem;">
-                    🕒 施工時間：{{ item.start_time }} ~ {{ item.end_time }}<br>
-                    📌 案件編號：<code>{{ item.case_no }}</code><br>
-                    🏛️ 主辦機關：{{ item.organ }} (承辦：{{ item.officer }})<br>
-                    ⏱️ 申辦送出時間：{{ item.timestamp }}
-                </p>
-
-                {% if item.attachments %}
-                <hr class="my-2">
-                <div style="font-size: 0.85rem;">
-                    <strong>📎 相關附件與公文：</strong>
-                    <ul class="mb-0 ps-3">
-                        {% for att in item.attachments %}
-                        <li>
-                            <a href="{{ att.download_url }}" target="_blank">{{ att.file_name }}</a>
-                            {% if att.description %} <span class="text-muted">({{ att.description }})</span> {% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
+                <p class="text-muted mt-2" style="font-size: 0.9rem;">正在向政府網站即時查詢審核進度，請稍候...</p>
             </div>
         </div>
-        {% endfor %}
 
-        <div class="text-center mt-4">
-            <button class="btn btn-outline-secondary btn-sm" onclick="window.location.reload()">🔄 重新整理即時狀態</button>
+        <!-- 載入更多與重新整理按鈕區塊 -->
+        <div class="text-center mt-4 mb-5" id="action-buttons" style="display: none;">
+            <button id="load-more-btn" class="btn btn-primary btn-sm me-2" onclick="loadRecords()">📥 載入更多 (5筆)</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="window.location.reload()">🔄 重新整理</button>
+        </div>
+        <div id="no-more-msg" class="text-center text-muted mb-4" style="display: none; font-size: 0.9rem;">
+            沒有更多歷史紀錄了
         </div>
     </div>
+
+    <script>
+        let currentOffset = 0;
+        const userId = "{{ user_id }}";
+
+        // 頁面載入後立即發送第一次 API 請求 (offset=0)
+        document.addEventListener("DOMContentLoaded", () => {
+            loadRecords();
+        });
+
+        function loadRecords() {
+            const loadBtn = document.getElementById("load-more-btn");
+            if (loadBtn) {
+                loadBtn.disabled = true;
+                loadBtn.innerText = "載入中...";
+            }
+
+            fetch(`/api/history-more?userId=${userId}&offset=${currentOffset}`)
+                .then(res => res.json())
+                .then(data => {
+                    // 移除初次載入的轉圈圈動畫
+                    const spinner = document.getElementById("loading-spinner");
+                    if (spinner) spinner.remove();
+
+                    if (data.success) {
+                        const container = document.getElementById("records-container");
+                        const actionButtons = document.getElementById("action-buttons");
+                        actionButtons.style.display = "block";
+
+                        if (data.records.length === 0 && currentOffset === 0) {
+                            document.getElementById("message-container.innerHTML").innerHTML = `
+                                <div class="alert alert-info text-center">目前尚無任何申請歷史紀錄。</div>
+                            `;
+                            if (loadBtn) loadBtn.style.display = "none";
+                            return;
+                        }
+
+                        data.records.forEach(item => {
+                            let badgeClass = "bg-secondary";
+                            if (item.status.includes("已結案")) badgeClass = "bg-success";
+                            else if (item.status.includes("辦理中")) badgeClass = "bg-warning text-dark";
+
+                            let attachmentsHtml = "";
+                            if (item.attachments && item.attachments.length > 0) {
+                                let attList = item.attachments.map(att => `
+                                    <li>
+                                        <a href="${att.download_url}" target="_blank">${att.file_name}</a>
+                                    </li>
+                                `).join("");
+
+                                attachmentsHtml = `
+                                    <hr class="my-2">
+                                    <div style="font-size: 0.85rem;">
+                                        <strong>📎 相關附件與公文：</strong>
+                                        <ul class="mb-0 ps-3">${attList}</ul>
+                                    </div>
+                                `;
+                            }
+
+                            const cardHtml = `
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h5 class="card-title text-primary mb-0">📍 ${item.address}</h5>
+                                            <span class="badge ${badgeClass} badge-status">${item.status}</span>
+                                        </div>
+                                        <p class="card-text text-muted mb-2" style="font-size: 0.85rem;">
+                                            🕒 施工時間：${item.start_time} ~ ${item.end_time}<br>
+                                            📌 案件編號：<code>${item.case_no}</code><br>
+                                            🏛️ 主辦機關：${item.organ} (承辦：${item.officer})<br>
+                                            ⏱️ 申辦送出時間：${item.timestamp}
+                                        </p>
+                                        ${attachmentsHtml}
+                                    </div>
+                                </div>
+                            `;
+                            container.insertAdjacentHTML("beforeend", cardHtml);
+                        });
+
+                        currentOffset += data.records.length;
+
+                        if (!data.has_more) {
+                            if (loadBtn) loadBtn.style.display = "none";
+                            document.getElementById("no-more-msg").style.display = "block";
+                        } else {
+                            if (loadBtn) {
+                                loadBtn.disabled = false;
+                                loadBtn.innerText = "📥 載入更多 (5筆)";
+                            }
+                        }
+                    } else {
+                        alert("載入資料發生錯誤：" + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    const spinner = document.getElementById("loading-spinner");
+                    if (spinner) spinner.remove();
+                    alert("網路連線失敗，請稍後再試");
+                });
+        }
+    </script>
 </body>
 
 </html>

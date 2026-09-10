@@ -220,7 +220,9 @@ def handle_file_message(event):
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.reply_message(
-                ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=f"處理檔案時發生錯誤：{str(e)}")])
+                ReplyMessageRequest(
+                    reply_token=event.reply_token, messages=[TextMessage(text=f"處理檔案時發生錯誤：{str(e)}")]
+                )
             )
 
 
@@ -232,7 +234,11 @@ def handle_sticker_message(event):
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text="收到您的貼圖！不過目前主要任務是接收路權圖檔與設定時間哦。\n(請傳送圖檔，或隨時輸入「取消」)")],
+                messages=[
+                    TextMessage(
+                        text="收到您的貼圖！不過目前主要任務是接收路權圖檔與設定時間哦。\n(請傳送圖檔，或隨時輸入「取消」)"
+                    )
+                ],
             )
         )
 
@@ -282,7 +288,9 @@ def handle_text_message(event):
     if user_id not in user_session_data or not user_session_data[user_id].get("image_path"):
         reply_text = "⚠️ 請先傳送路權圖檔（檔名設為完整地址）！\n(輸入「查詢」可查看歷史紀錄，輸入「取消」可重來)"
     else:
-        reply_text = "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入「取消」)"
+        reply_text = (
+            "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入「取消」)"
+        )
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -339,7 +347,9 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
             with ApiClient(configuration) as api_client:
                 line_bot_api = MessagingApi(api_client)
                 line_bot_api.push_message(
-                    PushMessageRequest(to=user_id, messages=[TextMessage(text="⚠️ 自動填表流程結束，但未確認到完成畫面。")])
+                    PushMessageRequest(
+                        to=user_id, messages=[TextMessage(text="⚠️ 自動填表流程結束，但未確認到完成畫面。")]
+                    )
                 )
         bot.close()
 
@@ -347,7 +357,9 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.push_message(
-                PushMessageRequest(to=user_id, messages=[TextMessage(text=f"❌ 執行 Selenium 自動填表時發生例外錯誤：\n{e})")])
+                PushMessageRequest(
+                    to=user_id, messages=[TextMessage(text=f"❌ 執行 Selenium 自動填表時發生例外錯誤：\n{e})")]
+                )
             )
     finally:
         if os.path.exists(image_path):
@@ -358,29 +370,38 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
 
 
 # 5. 新增：歷史申請與即時審核結果查詢頁面
-
-
 @app.route("/history-view")
 def history_view():
     user_id = request.args.get("userId")
     if not user_id:
         return "<h3>❌ 錯誤：缺少使用者識別碼 (userId)</h3>", 400
+    # 直接回傳靜態畫面，不經手任何運算與爬蟲
+    return render_template("history.html", user_id=user_id)
 
-    if not os.path.exists(LOG_CSV_FILE) or os.path.getsize(LOG_CSV_FILE) == 0:
-        return render_template("history.html", records=[], user_id=user_id, message="目前尚無任何申請歷史紀錄。")
+
+@app.route("/api/history-more", methods=["GET"])
+def api_history_more():
+    user_id = request.args.get("userId")
+    offset = int(request.args.get("offset", 0))
+    limit = 5
+
+    if not os.path.exists(LOG_CSV_FILE):
+        return jsonify({"success": True, "records": [], "has_more": False})
 
     try:
         df = pd.read_csv(LOG_CSV_FILE, encoding="utf-8-sig")
-        if df.empty:
-            return render_template("history.html", records=[], user_id=user_id, message="找不到您過往的申請紀錄。")
+        # df = df[df["使用者ID"] == user_id]
+        reversed_df = df.iloc[::-1].reset_index(drop=True)
 
-        # 限制抓取最近 10 筆，避免一次請求太多拖垮網頁
-        recent_df = df.tail(10).iloc[::-1]
+        batch_df = reversed_df.iloc[offset : offset + limit]
+        has_more = (offset + limit) < len(reversed_df)
+
+        if batch_df.empty:
+            return jsonify({"success": True, "records": [], "has_more": False})
 
         def process_row(row):
             case_no = str(row["案件編號"])
             query_code = str(row.get("查詢碼", ""))
-
             status_text = "查詢中..."
             attachments = []
             organ = "-"
@@ -394,10 +415,6 @@ def history_view():
                     organ = case_info.organ or "-"
                     officer = case_info.officer or "-"
                     attachments = case_info.attachments
-                else:
-                    status_text = "無法取得即時狀態（驗證碼辨識失敗或逾時）"
-            else:
-                status_text = "無有效案件編號/查詢碼"
 
             return {
                 "timestamp": row["時間"],
@@ -409,18 +426,23 @@ def history_view():
                 "status": status_text,
                 "organ": organ,
                 "officer": officer,
-                "attachments": [attach for attach in attachments if attach.title.startswith('附件檔案')],
+                "attachments": [
+                    {"file_name": att.file_name, "download_url": att.download_url, "description": att.description}
+                    for att in attachments
+                    if att.title.startswith("附件檔案")
+                ],
             }
 
-        # 使用 ThreadPoolExecutor 平行化請求（最多同時跑 5 個執行緒）
-        rows_list = [row for _, row in recent_df.iterrows()]
+        rows_list = [row for _, row in batch_df.iterrows()]
         with ThreadPoolExecutor(max_workers=5) as executor:
             records = list(executor.map(process_row, rows_list))
 
-        return render_template("history.html", records=records, user_id=user_id, message=None)
+        # 確保依據「時間」（申辦送出時間）由新到舊排序
+        records = sorted(records, key=lambda x: x["timestamp"], reverse=True)
+        return jsonify({"success": True, "records": records, "has_more": has_more})
 
     except Exception as e:
-        return f"<h3>⚠️ 載入歷史紀錄發生錯誤：{str(e)}</h3>", 500
+        return jsonify({"success": False, "message": str(e)})
 
 
 if __name__ == "__main__":
