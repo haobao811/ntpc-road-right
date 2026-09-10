@@ -134,11 +134,6 @@ def query_case_with_local_ocr(
     })
 
     print("🌐 正在初始化連線...")
-    init_res = session.get(f"{BASE_URL}/service/")
-    if init_res.status_code != 200:
-        print(f"❌ 無法連線至主頁面，狀態碼: {init_res.status_code}")
-        return None
-
     for attempt in range(1, max_retries + 1):
         print(f"🔄 嘗試第 {attempt} 次 API 查詢與本地 AI 驗證碼辨識...")
 

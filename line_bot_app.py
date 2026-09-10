@@ -2,6 +2,7 @@
 新北市路權申請 LINE Bot 整合主程式 (LIFF 網頁時間選擇版 + v3 正確引用版)
 """
 
+from concurrent.futures import ThreadPoolExecutor
 import os
 import re
 import tempfile
@@ -357,6 +358,8 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
 
 
 # 5. 新增：歷史申請與即時審核結果查詢頁面
+
+
 @app.route("/history-view")
 def history_view():
     user_id = request.args.get("userId")
@@ -368,18 +371,14 @@ def history_view():
 
     try:
         df = pd.read_csv(LOG_CSV_FILE, encoding="utf-8-sig")
-        # df = df[df["使用者ID"] == user_id]
-
         if df.empty:
             return render_template("history.html", records=[], user_id=user_id, message="找不到您過往的申請紀錄。")
 
-        # 取得最新幾筆（例如倒序最近 20 筆）
-        recent_df = df.tail(20).iloc[::-1]
-        records = []
+        # 限制抓取最近 10 筆，避免一次請求太多拖垮網頁
+        recent_df = df.tail(10).iloc[::-1]
 
-        for _, row in recent_df.iterrows():
+        def process_row(row):
             case_no = str(row["案件編號"])
-            # 若 CSV 有存查詢碼，可直接拿；若沒有則預設或嘗試代入
             query_code = str(row.get("查詢碼", ""))
 
             status_text = "查詢中..."
@@ -387,7 +386,6 @@ def history_view():
             organ = "-"
             officer = "-"
 
-            # 若有案件編號與查詢碼，即時向政府網站抓取最新結果
             if case_no and case_no != "未知" and query_code and query_code != "未知":
                 html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
                 if html_res:
@@ -401,20 +399,23 @@ def history_view():
             else:
                 status_text = "無有效案件編號/查詢碼"
 
-            records.append(
-                {
-                    "timestamp": row["時間"],
-                    "address": row["施工地址"],
-                    "start_time": row["開始時間"],
-                    "end_time": row["結束時間"],
-                    "case_no": case_no,
-                    "query_code": query_code,
-                    "status": status_text,
-                    "organ": organ,
-                    "officer": officer,
-                    "attachments": attachments,
-                }
-            )
+            return {
+                "timestamp": row["時間"],
+                "address": row["施工地址"],
+                "start_time": row["開始時間"],
+                "end_time": row["結束時間"],
+                "case_no": case_no,
+                "query_code": query_code,
+                "status": status_text,
+                "organ": organ,
+                "officer": officer,
+                "attachments": attachments,
+            }
+
+        # 使用 ThreadPoolExecutor 平行化請求（最多同時跑 5 個執行緒）
+        rows_list = [row for _, row in recent_df.iterrows()]
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            records = list(executor.map(process_row, rows_list))
 
         return render_template("history.html", records=records, user_id=user_id, message=None)
 
