@@ -70,6 +70,39 @@
             loadRecords();
         });
 
+        // 輔助函式：用來移除日期中的年份（保留秒數）
+        function removeYear(dateStr) {
+            if (!dateStr) return '';
+            let parts = dateStr.split(/[\/-]/);
+            if (parts.length >= 3) {
+                return parts.slice(1).join('/');
+            }
+            return dateStr;
+        }
+
+        // 輔助函式：僅用來移除送出時間的年份與秒數
+        function formatTimestamp(dateStr) {
+            if (!dateStr) return '';
+            let noYear = removeYear(dateStr);
+            noYear = noYear.replace(/:\d{2}(\s|$)/, '$1').trim();
+            return noYear;
+        }
+
+        // 輔助函式：將完整日期時間字串拆分為「日期」與「時間」，並加上顏色樣式
+        function formatDateTimeWithColor(dateStr) {
+            if (!dateStr) return '';
+            const cleaned = removeYear(dateStr);
+            const parts = cleaned.split(' ');
+            
+            if (parts.length >= 2) {
+                const datePart = parts[0]; // 例如：06/07
+                const timePart = parts.slice(1).join(' '); // 例如：08:00:00
+                // 日期用深藍色 (text-primary)，時間用深灰色/粗體或特定顏色區分
+                return `<span class="text-primary fw-bold">${datePart}</span> <span class="text-dark">${timePart}</span>`;
+            }
+            return `<span class="text-primary fw-bold">${cleaned}</span>`;
+        }
+
         function searchRecords() {
             currentOffset = 0; // 重置偏移量
             document.getElementById("message-container").innerHTML = "";
@@ -126,17 +159,42 @@
 
                         data.records.forEach((item, index) => {
                             const uniqueId = `record-${currentOffset}-${index}`;
+                            
+                            const rawStart = item.start_time || '';
+                            const rawEnd = item.end_time || '';
+                            
+                            // 判斷是否為同一天
+                            let formattedStart = formatDateTimeWithColor(rawStart);
+                            let formattedEnd = '';
+
+                            if (rawStart && rawEnd) {
+                                const startDatePart = rawStart.split(' ')[0];
+                                const endDatePart = rawEnd.split(' ')[0];
+                                if (startDatePart === endDatePart) {
+                                    // 若同一天，結束時間只顯示時間部分（維持時間樣式）
+                                    const timeOnly = rawEnd.includes(' ') ? rawEnd.split(' ')[1] : rawEnd;
+                                    formattedEnd = `<span class="text-dark">${timeOnly}</span>`;
+                                } else {
+                                    formattedEnd = formatDateTimeWithColor(rawEnd);
+                                }
+                            } else {
+                                formattedEnd = formatDateTimeWithColor(rawEnd);
+                            }
+
+                            // 處理送出時間：移除年份與秒數
+                            const timestampFormatted = formatTimestamp(item.timestamp);
+
                             const cardHtml = `
                                 <div class="card" id="${uniqueId}">
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <h5 class="card-title text-primary mb-0">📍 ${item.address}</h5>
+                                            <h5 class="card-title text-primary mb-0">${item.address}</h5>
                                             <span class="badge bg-secondary badge-status status-badge">
                                                 <span class="spinner-border spinner-border-sm me-1" role="status"></span>查詢中...
                                             </span>
                                         </div>
                                         <p class="card-text text-muted mb-2" style="font-size: 0.85rem;">
-                                            🕒 施工時間：${item.start_time} ~ ${item.end_time}<br>
+                                            🕒 施工時間：${formattedStart} ~ ${formattedEnd}<br>
                                             📌 案件編號：<code>${item.case_no}</code><br>
                                             🏛️ 主辦機關：<span class="organ-field">-</span><br>
                                             👤 承辦人員：<span class="officer-field">-</span> <span class="text-muted">|</span> <i class="bi bi-telephone-fill text-secondary"></i> <span class="contact-field">-</span>
@@ -145,8 +203,8 @@
                                         <div class="attachments-container"></div>
 
                                         <div class="d-flex justify-content-between align-items-center text-muted mt-2 pt-2 border-top" style="font-size: 0.75rem;">
-                                            <span>🙋 申請人員：${item.user_name || '未記錄'}</span>
-                                            <span>⏱️ 申辦送出時間：${item.timestamp}</span>
+                                            <span>申請人員：${item.user_name || '未記錄'}</span>
+                                            <span>送件時間：${timestampFormatted}</span>
                                         </div>
                                     </div>
                                 </div>
