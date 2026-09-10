@@ -181,3 +181,4 @@ cython_debug/
 .cursorindexingignore
 *.jpg
 output/ntpc-road-right-setup.exe
+applications_log.csv
