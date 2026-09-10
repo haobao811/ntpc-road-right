@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>路權申請歷史與審核進度查詢</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        .card {
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .badge-status {
+            font-size: 0.9rem;
+            padding: 0.5em 0.75em;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" style="max-width: 600px;">
+        <h3 class="mb-4 text-center">📋 歷史申請與審核進度</h3>
+
+        {% if message %}
+        <div class="alert alert-info text-center">{{ message }}</div>
+        {% endif %}
+
+        {% for item in records %}
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="card-title text-primary mb-0">📍 {{ item.address }}</h5>
+                    <span class="badge
+                    {% if '已結案' in item.status %}bg-success
+                    {% elif '辦理中' in item.status %}bg-warning text-dark
+                    {% else %}bg-secondary{% endif %} badge-status">
+                        {{ item.status }}
+                    </span>
+                </div>
+
+                <p class="card-text text-muted mb-2" style="font-size: 0.85rem;">
+                    🕒 施工時間：{{ item.start_time }} ~ {{ item.end_time }}<br>
+                    📌 案件編號：<code>{{ item.case_no }}</code><br>
+                    🏛️ 主辦機關：{{ item.organ }} (承辦：{{ item.officer }})<br>
+                    ⏱️ 申辦送出時間：{{ item.timestamp }}
+                </p>
+
+                {% if item.attachments %}
+                <hr class="my-2">
+                <div style="font-size: 0.85rem;">
+                    <strong>📎 相關附件與公文：</strong>
+                    <ul class="mb-0 ps-3">
+                        {% for att in item.attachments %}
+                        <li>
+                            <a href="{{ att.download_url }}" target="_blank">{{ att.file_name }}</a>
+                            {% if att.description %} <span class="text-muted">({{ att.description }})</span> {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-secondary btn-sm" onclick="window.location.reload()">🔄 重新整理即時狀態</button>
+        </div>
+    </div>
+</body>
+
+</html>

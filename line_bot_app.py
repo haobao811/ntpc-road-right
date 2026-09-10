@@ -9,6 +9,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+import pandas as pd
 from flask import Flask, abort, jsonify, render_template, request
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
@@ -32,14 +33,20 @@ from linebot.v3.webhooks import (
 
 # 導入你原本寫好的核心模組
 from bot import AutoFillForm
-from history_logger import get_user_application_history, save_application_log
+from history_logger import (
+    LOG_CSV_FILE,
+    get_user_application_history,
+    save_application_log,
+)
 from models import ApplicationResultRecord, DynamicApplyInfo
+from search import parse_case_query_result, query_case_with_local_ocr
 
 app = Flask(__name__)
 
 # 請確保在這裡直接填入或透過環境變數帶入正確的 LINE Channel 金鑰
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "你的_Channel_Access_Token")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "你的_Channel_Secret")
+NGROK_BASE_URL = os.getenv("NGROK_BASE_URL", "https://你的ngrok網址.ngrok-free.app")
 
 # === v3 初始化 ===
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
@@ -176,7 +183,7 @@ def handle_file_message(event):
 
         user_session_data[user_id] = {"image_path": temp_file_path, "address": clean_addr}
 
-        liff_url = os.getenv("LIFF_URL", "https://你的ngrok網址.ngrok-free.app/liff-form")
+        liff_url = f"{NGROK_BASE_URL.rstrip('/')}/liff-form"
 
         buttons_template = ButtonsTemplate(
             title="📁 檔案接收成功！",
@@ -242,13 +249,14 @@ def handle_text_message(event):
 
     # 2. 新增：處理查詢歷史紀錄指令
     if text in ["查詢", "紀錄", "歷史", "history", "log"]:
-        history_text = get_user_application_history(user_id=None)
+        my_history_url = f"{NGROK_BASE_URL.rstrip('/')}/history-view?userId={user_id}"
+
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.reply_message(
                 ReplyMessageRequest(
                     reply_token=event.reply_token,
-                    messages=[TextMessage(text=history_text)],
+                    messages=[TextMessage(text=f"📋 請點擊以下連結查看您的歷史申請與即時審核進度：\n{my_history_url}")],
                 )
             )
         return
@@ -330,6 +338,72 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
                 os.remove(image_path)
             except:
                 pass
+
+
+# 5. 新增：歷史申請與即時審核結果查詢頁面
+@app.route("/history-view")
+def history_view():
+    user_id = request.args.get("userId")
+    if not user_id:
+        return "<h3>❌ 錯誤：缺少使用者識別碼 (userId)</h3>", 400
+
+    if not os.path.exists(LOG_CSV_FILE) or os.path.getsize(LOG_CSV_FILE) == 0:
+        return render_template("history.html", records=[], user_id=user_id, message="目前尚無任何申請歷史紀錄。")
+
+    try:
+        df = pd.read_csv(LOG_CSV_FILE, encoding="utf-8-sig")
+        # df = df[df["使用者ID"] == user_id]
+
+        if df.empty:
+            return render_template("history.html", records=[], user_id=user_id, message="找不到您過往的申請紀錄。")
+
+        # 取得最新幾筆（例如倒序最近 20 筆）
+        recent_df = df.tail(20).iloc[::-1]
+        records = []
+
+        for _, row in recent_df.iterrows():
+            case_no = str(row["案件編號"])
+            # 若 CSV 有存查詢碼，可直接拿；若沒有則預設或嘗試代入
+            query_code = str(row.get("查詢碼", ""))
+
+            status_text = "查詢中..."
+            attachments = []
+            organ = "-"
+            officer = "-"
+
+            # 若有案件編號與查詢碼，即時向政府網站抓取最新結果
+            if case_no and case_no != "未知" and query_code and query_code != "未知":
+                html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
+                if html_res:
+                    case_info = parse_case_query_result(html_res)
+                    status_text = case_info.status or "未知狀態"
+                    organ = case_info.organ or "-"
+                    officer = case_info.officer or "-"
+                    attachments = case_info.attachments
+                else:
+                    status_text = "無法取得即時狀態（驗證碼辨識失敗或逾時）"
+            else:
+                status_text = "無有效案件編號/查詢碼"
+
+            records.append(
+                {
+                    "timestamp": row["時間"],
+                    "address": row["施工地址"],
+                    "start_time": row["開始時間"],
+                    "end_time": row["結束時間"],
+                    "case_no": case_no,
+                    "query_code": query_code,
+                    "status": status_text,
+                    "organ": organ,
+                    "officer": officer,
+                    "attachments": attachments,
+                }
+            )
+
+        return render_template("history.html", records=records, user_id=user_id, message=None)
+
+    except Exception as e:
+        return f"<h3>⚠️ 載入歷史紀錄發生錯誤：{str(e)}</h3>", 500
 
 
 if __name__ == "__main__":
