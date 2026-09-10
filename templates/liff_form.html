@@ -1,16 +1,45 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>新北市路權申請填寫</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f9f9f9; color: #333; }
-        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select, button { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f9f9f9;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
 
         /* 讓日期輸入框整塊都可以點擊觸發彈出曆法 */
         input[type="date"] {
@@ -19,23 +48,65 @@
         }
 
         /* 顯示施工地址的樣式 */
-        .address-box { padding: 10px; background: #f0f4f8; border-radius: 5px; font-weight: bold; color: #0066cc; border: 1px solid #d0e1f9; word-break: break-all; }
+        .address-box {
+            padding: 10px;
+            background: #f0f4f8;
+            border-radius: 5px;
+            font-weight: bold;
+            color: #0066cc;
+            border: 1px solid #d0e1f9;
+            word-break: break-all;
+        }
 
         /* 確認送出按鈕 (綠色) */
-        .btn-submit { background: #06C755; color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-submit:active { background: #05b34c; }
+        .btn-submit {
+            background: #06C755;
+            color: white;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn-submit:active {
+            background: #05b34c;
+        }
 
         /* 取消按鈕 (灰色/紅色系) */
-        .btn-cancel { background: #e0e0e0; color: #333; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 8px; }
-        .btn-cancel:active { background: #cccccc; }
+        .btn-cancel {
+            background: #e0e0e0;
+            color: #333;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 8px;
+        }
 
-        .hint { font-size: 12px; color: #666; margin-top: 3px; }
-        .time-row { display: flex; gap: 10px; }
-        .time-row select { flex: 1; }
+        .btn-cancel:active {
+            background: #cccccc;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        .time-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .time-row select {
+            flex: 1;
+        }
     </style>
 </head>
+
 <body>
-    <div class="container">
+    <div class="container" id="mainContainer">
         <h2>路權申請時間設定</h2>
 
         <!-- 新增：顯示 OCR 辨識出來的施工地址 -->
@@ -46,8 +117,8 @@
 
         <div class="form-group">
             <label>施工日期：</label>
-            <!-- 加上 onclick 讓點擊整行 input 時自動嘗試展開日期選單 -->
-            <input type="date" id="selectedDate" onchange="onDateOrTimeChanged()" onclick="this.showPicker && this.showPicker()">
+            <input type="date" id="selectedDate" onchange="onDateOrTimeChanged()"
+                onclick="this.showPicker && this.showPicker()">
         </div>
 
         <div class="form-group">
@@ -101,7 +172,7 @@
 
         async function main() {
             try {
-                await liff.init({ liffId: "2011503640-EyF0j6xp" });
+                await liff.init({ liffId: "2011503642-8TUY49si" });
                 if (!liff.isLoggedIn()) {
                     liff.login();
                     return;
@@ -299,8 +370,24 @@
 
                 const result = await response.json();
                 if (result.success) {
-                    alert("申請已送出，背景正在自動填表中！");
-                    liff.closeWindow();
+                    // 切換為成功申請的頁面樣式
+                    document.getElementById('mainContainer').innerHTML = `
+                        <div style="text-align: center; padding: 40px 10px;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
+                            <h2 style="color: #06C755; margin-bottom: 10px;">申請已成功送出！</h2>
+                            <p style="color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 25px;">
+                                背景正在自動填表中，您可以直接關閉此視窗返回 LINE 聊天室。
+                            </p>
+                            <button onclick="liff.closeWindow()" style="background: #06C755; color: white; border: none; font-size: 16px; font-weight: bold; padding: 12px; border-radius: 5px; cursor: pointer; width: 100%;">
+                                關閉視窗
+                            </button>
+                        </div>
+                    `;
+
+                    // 嘗試自動關閉（若在 LINE App 內會直接關閉）
+                    setTimeout(() => {
+                        liff.closeWindow();
+                    }, 400);
                 } else {
                     alert("送出失敗：" + result.message);
                 }
@@ -317,4 +404,5 @@
         }
     </script>
 </body>
+
 </html>
