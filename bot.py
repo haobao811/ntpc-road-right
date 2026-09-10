@@ -187,8 +187,7 @@ class AutoFillForm:
             time.sleep(1)
             img_element = self.wait.until(EC.visibility_of_element_located((By.ID, "authImage")))
 
-        captcha_img = img_element.screenshot_as_png
-        img_bytes = captcha_img.screenshot_as_png
+        img_bytes = img_element.screenshot_as_png
         code_text, elapsed = ocr.solve(img_bytes)
         logger.info(f"🤖 本地 AI 辨識結果: [{code_text}] (耗時 {elapsed:.3f} 秒)")
 
