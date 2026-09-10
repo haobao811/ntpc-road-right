@@ -445,8 +445,24 @@ def api_history_more():
         if batch_df.empty:
             return jsonify({"success": True, "records": [], "has_more": False})
 
+        unique_user_ids = batch_df["使用者ID"].dropna().astype(str).unique() if "使用者ID" in batch_df.columns else []
+        user_name_map = {}
+        if unique_user_ids:
+            with ApiClient(configuration) as api_client:
+                line_bot_api = MessagingApi(api_client)
+                for uid in unique_user_ids:
+                    if uid and uid != "未知" and uid != "nan":
+                        try:
+                            profile = line_bot_api.get_profile(uid)
+                            user_name_map[uid] = profile.display_name
+                        except:
+                            user_name_map[uid] = "未知用戶"
+                    else:
+                        user_name_map[uid] = "未知用戶"
+
         records = []
         for _, row in batch_df.iterrows():
+            row_uid = str(row.get("使用者ID", ""))
             records.append(
                 {
                     "timestamp": row["時間"],
@@ -455,6 +471,7 @@ def api_history_more():
                     "end_time": row["結束時間"],
                     "case_no": str(row["案件編號"]),
                     "query_code": str(row.get("查詢碼", "")),
+                    "user_name": user_name_map.get(row_uid, "未知用戶"),
                 }
             )
 
