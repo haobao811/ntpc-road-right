@@ -496,14 +496,19 @@ def api_calendar_events():
         if df.empty:
             return jsonify([])
 
-        # 1. 取得 FullCalendar 自動傳入的顯示區間 (格式通常為 YYYY-MM-DD)
+        # 1. 取得 FullCalendar 自動傳入的顯示區間
         start_range = request.args.get("start")
         end_range = request.args.get("end")
 
         if start_range and end_range:
-            df["開始時間"] = pd.to_datetime(df["開始時間"], errors="coerce")
-            start_dt = pd.to_datetime(start_range)
-            end_dt = pd.to_datetime(end_range)
+            # 確保 DataFrame 的欄位是標準 datetime64[ns]，避免微秒/奈秒精度衝突
+            df["開始時間"] = pd.to_datetime(df["開始時間"], errors="coerce").astype("datetime64[ns]")
+
+            # 將傳入的範圍轉為相同型態
+            start_dt = pd.to_datetime(start_range).strftime("%Y-%m-%d")
+            end_dt = pd.to_datetime(end_range).strftime("%Y-%m-%d")
+
+            # 進行比較
             df = df[(df["開始時間"] >= start_dt) & (df["開始時間"] <= end_dt)]
 
         if df.empty:
