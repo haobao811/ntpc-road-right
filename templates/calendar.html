@@ -210,8 +210,8 @@
             var isMobile = window.innerWidth < 768;
 
             var calendar = new FullCalendar.Calendar(calendarEl, {
-                // 手機預設顯示清單或月曆，這裡根據寬度自動切換
-                initialView: isMobile ? 'dayGridMonth' : 'dayGridMonth',
+                // 手機預設顯示列表 (listMonth)，桌機顯示月曆 (dayGridMonth)
+                initialView: isMobile ? 'listMonth' : 'dayGridMonth',
                 headerToolbar: {
                     left: 'prev,next',
                     center: 'title',
