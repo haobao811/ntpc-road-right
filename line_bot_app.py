@@ -409,7 +409,7 @@ def history_view():
                 "status": status_text,
                 "organ": organ,
                 "officer": officer,
-                "attachments": attachments,
+                "attachments": [attach for attach in attachments if attach.title.startswith('附件檔案')],
             }
 
         # 使用 ThreadPoolExecutor 平行化請求（最多同時跑 5 個執行緒）
