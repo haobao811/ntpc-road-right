@@ -23,6 +23,18 @@
             font-size: 0.9rem;
             padding: 0.5em 0.75em;
         }
+
+        /* 預設桌機版：不強制換行，讓地址連續顯示 */
+        .address-break {
+            display: inline;
+        }
+
+        /* 手機版（螢幕寬度 576px 以下）：顯示換行 */
+        @media (max-width: 576px) {
+            .address-break {
+                display: block;
+            }
+        }
     </style>
 </head>
 
@@ -101,6 +113,18 @@
                 return `<span class="text-primary fw-bold">${datePart}</span> <span class="text-dark">${timePart}</span>`;
             }
             return `<span class="text-primary fw-bold">${cleaned}</span>`;
+        }
+
+        // 輔助函式：將地址在「xx區xx里」後面透過 CSS class 包覆（支援 RWD 手機換行）
+        function formatAddress(addr) {
+            if (!addr) return '';
+            const match = addr.match(/^(.+?[\u5340\u5e02\u93ae\u9109].+?[\u91cc])/);
+            if (match) {
+                const prefix = match[1];
+                const rest = addr.slice(prefix.length);
+                return `<span class="small">${prefix}</span><span class="address-break"></span>${rest}`;
+            }
+            return addr;
         }
 
         function searchRecords() {
@@ -183,12 +207,15 @@
 
                             // 處理送出時間：移除年份與秒數
                             const timestampFormatted = formatTimestamp(item.timestamp);
+                            
+                            // 處理 RWD 地址換行
+                            const formattedAddressHtml = formatAddress(item.address);
 
                             const cardHtml = `
                                 <div class="card" id="${uniqueId}">
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <h5 class="card-title text-primary mb-0">${item.address}</h5>
+                                            <h5 class="card-title text-primary mb-0" style="line-height: 1.3;">${formattedAddressHtml}</h5>
                                             <span class="badge bg-secondary badge-status status-badge">
                                                 <span class="spinner-border spinner-border-sm me-1" role="status"></span>查詢中...
                                             </span>
