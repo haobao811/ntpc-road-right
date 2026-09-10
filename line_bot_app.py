@@ -185,17 +185,18 @@ def handle_file_message(event):
             line_bot_api = MessagingApiBlob(api_client)
             message_content = line_bot_api.get_message_content(message_id)
 
-        suffix = ".pdf" if isinstance(event.message, FileMessageContent) else ".jpg"
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tf:
-            if isinstance(message_content, bytes):
-                tf.write(message_content)
-            else:
+        temp_dir = tempfile.mkdtemp(prefix="road_")
+        original_filename = getattr(event.message, "file_name", "1.pdf")
+        temp_file_path = str(Path(temp_dir) / original_filename)
+        print("暫存檔案:", temp_file_path)
+        if isinstance(message_content, bytes):
+            with open(temp_file_path, "wb") as f:
+                f.write(message_content)
+        else:
+            with open(temp_file_path, "wb") as f:
                 for chunk in message_content.iter_content():
-                    tf.write(chunk)
-            temp_file_path = tf.name
+                    f.write(chunk)
 
-        original_filename = getattr(event.message, "file_name", "新北市板橋區中山路一段1號.jpg")
         stem_name = Path(original_filename).stem
         clean_addr = re.sub(r"\(\d+\)$", "", stem_name).strip()
 
