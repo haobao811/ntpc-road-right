@@ -37,8 +37,8 @@ from bot import AutoFillForm
 from history_logger import (
     LOG_CSV_FILE,
     append_status_log,
-    save_application_log,
     get_latest_statuses_for_batch,
+    save_application_log,
 )
 from models import ApplicationResultRecord, DynamicApplyInfo
 from search import parse_case_query_result, query_case_with_local_ocr
@@ -221,9 +221,7 @@ def handle_file_message(event):
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.reply_message(
-                ReplyMessageRequest(
-                    reply_token=event.reply_token, messages=[TextMessage(text=f"處理檔案時發生錯誤：{str(e)}")]
-                )
+                ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=f"處理檔案時發生錯誤：{str(e)}")])
             )
 
 
@@ -235,11 +233,7 @@ def handle_sticker_message(event):
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[
-                    TextMessage(
-                        text="收到您的貼圖！不過目前主要任務是接收路權圖檔與設定時間哦。\n(請傳送圖檔，或隨時輸入「取消」)"
-                    )
-                ],
+                messages=[TextMessage(text="收到您的貼圖！不過目前主要任務是接收路權圖檔與設定時間哦。\n(請傳送圖檔，或隨時輸入「取消」)")],
             )
         )
 
@@ -285,13 +279,24 @@ def handle_text_message(event):
             )
         return
 
+    if text in ["日曆", "行事曆", "calendar"]:
+        my_calendar_url = f"{NGROK_BASE_URL.rstrip('/')}/calendar-view?userId={user_id}"
+
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=f"📅 請點擊以下連結查看您的施工排程行事曆：\n{my_calendar_url}")],
+                )
+            )
+        return
+
     # 3. 原有的檔案狀態判斷
     if user_id not in user_session_data or not user_session_data[user_id].get("image_path"):
-        reply_text = "⚠️ 請先傳送路權圖檔（檔名設為完整地址）！\n(輸入〈查詢〉可查看歷史紀錄，輸入〈取消〉可重來)"
+        reply_text = "⚠️ 請先傳送路權圖檔（檔名設為完整地址）！\n(輸入〈查詢〉可查看歷史紀錄，輸入〈日曆〉可查看施工行事曆，輸入〈取消〉可重來)"
     else:
-        reply_text = (
-            "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入〈取消〉)"
-        )
+        reply_text = "👉 系統已有您的待辦檔案。請點擊上方按鈕選擇填表時間！\n(若傳錯檔案，可直接重新傳送新檔案或輸入〈取消〉)"
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -348,9 +353,7 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
             with ApiClient(configuration) as api_client:
                 line_bot_api = MessagingApi(api_client)
                 line_bot_api.push_message(
-                    PushMessageRequest(
-                        to=user_id, messages=[TextMessage(text="⚠️ 自動填表流程結束，但未確認到完成畫面。")]
-                    )
+                    PushMessageRequest(to=user_id, messages=[TextMessage(text="⚠️ 自動填表流程結束，但未確認到完成畫面。")])
                 )
         bot.close()
 
@@ -358,9 +361,7 @@ def run_selenium_background_task(user_id, address, start_dt: datetime, duration,
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
             line_bot_api.push_message(
-                PushMessageRequest(
-                    to=user_id, messages=[TextMessage(text=f"❌ 執行 Selenium 自動填表時發生例外錯誤：\n{e})")]
-                )
+                PushMessageRequest(to=user_id, messages=[TextMessage(text=f"❌ 執行 Selenium 自動填表時發生例外錯誤：\n{e})")])
             )
     finally:
         if os.path.exists(image_path):
