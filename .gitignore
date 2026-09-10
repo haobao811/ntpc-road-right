@@ -182,3 +182,4 @@ cython_debug/
 *.jpg
 output/ntpc-road-right-setup.exe
 applications_log.csv
+*.csv
