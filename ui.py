@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (
 from config import HTML_CONTENT, LOC_COORDINATES, WEEKDAYS_ZH
 from gis import get_coordinates_by_address
 from map_bridge import MapBridge
-from models import DynamicApplyInfo, ApplicationResultRecord
+from models import ApplicationResultRecord, DynamicApplyInfo
 from threads import AsyncProcessThread, PreloadChiefDataThread, SeleniumThread
 
 logger = logging.getLogger(__name__)

@@ -1,4 +1,5 @@
 import time
+
 import ddddocr
 
 ocr_detector = ddddocr.DdddOcr(show_ad=False)

@@ -2,7 +2,6 @@
 Selenium 自動化表單填寫與 Tesseract OCR 驗證碼處理模組
 """
 
-import ocr
 import logging
 import time
 from datetime import date, timedelta
@@ -14,6 +13,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
+import ocr
 from config import STATIC_USER_INFO
 from haishan import get_police_precinct
 from models import DynamicApplyInfo

@@ -1,9 +1,11 @@
 import time
-import ocr
-from bs4 import BeautifulSoup
-import requests
-from urllib.parse import urlencode
 from dataclasses import dataclass, field
+from urllib.parse import urlencode
+
+import requests
+from bs4 import BeautifulSoup
+
+import ocr
 
 BASE_URL = "https://service.ntpc.gov.tw"
 
