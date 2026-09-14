@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from flask import Flask, abort, jsonify, render_template, request
+from flask import Flask, abort, jsonify, redirect, render_template, request
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
     ApiClient,
@@ -36,7 +36,9 @@ from linebot.v3.webhooks import (
 from bot import AutoFillForm
 from history_logger import (
     LOG_CSV_FILE,
+    append_download_log,
     append_status_log,
+    get_downloaded_attachments,
     get_latest_statuses_for_batch,
     save_application_log,
 )
@@ -437,8 +439,8 @@ def api_history_more():
         if search_query:
             clean_query = search_query.replace(" ", "")
             df = df[
-                df["施工地址"].str.contains(search_query, na=False) | 
-                df["案件編號"].astype(str).str.replace(r"\s+", "", regex=True).str.endswith(clean_query)
+                df["施工地址"].str.contains(search_query, na=False)
+                | df["案件編號"].astype(str).str.replace(r"\s+", "", regex=True).str.endswith(clean_query)
             ]
 
         reversed_df = df.iloc[::-1].reset_index(drop=True)
@@ -505,7 +507,12 @@ def api_fetch_case_detail():
     if case_no in detail_cache:
         cached_item = detail_cache[case_no]
         if current_time - cached_item["timestamp"] < DETAIL_CACHE_TTL:
-            return jsonify(cached_item["data"])
+            # 即使從快取拿，也重新比對一次最新下載狀態（確保即時性）
+            res_data = cached_item["data"].copy()
+            downloaded_set = get_downloaded_attachments()
+            for att in res_data.get("attachments", []):
+                att["is_downloaded"] = (case_no, att["file_name"]) in downloaded_set
+            return jsonify(res_data)
 
     try:
         html_res = query_case_with_local_ocr(case_no, query_code, max_retries=3)
@@ -518,11 +525,21 @@ def api_fetch_case_detail():
         # 同步寫入狀態日誌
         append_status_log(case_no, status_text)
 
-        attachments = [
-            {"file_name": att.file_name, "download_url": att.download_url, "description": att.description}
-            for att in case_info.attachments
-            if att.title.startswith("附件檔案")
-        ]
+        # 取得目前的下載紀錄集合
+        downloaded_set = get_downloaded_attachments()
+
+        attachments = []
+        for att in case_info.attachments:
+            if att.title.startswith("附件檔案"):
+                is_down = (str(case_no), att.file_name) in downloaded_set
+                attachments.append(
+                    {
+                        "file_name": att.file_name,
+                        "download_url": att.download_url,
+                        "description": att.description,
+                        "is_downloaded": is_down,
+                    }
+                )
 
         result_data = {
             "success": True,
@@ -534,10 +551,7 @@ def api_fetch_case_detail():
         }
 
         # 寫入快取與當前時間戳記
-        detail_cache[case_no] = {
-            "timestamp": current_time,
-            "data": result_data
-        }
+        detail_cache[case_no] = {"timestamp": current_time, "data": result_data}
 
         return jsonify(result_data)
 
@@ -674,6 +688,27 @@ def api_fetch_case_status():
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
+
+
+@app.route("/api/download-attachment", methods=["GET"])
+def api_download_attachment():
+    case_no = request.args.get("caseNo", "未知")
+    file_name = request.args.get("fileName", "未知檔案")
+    download_url = request.args.get("url", "")
+    user_id = request.args.get("userId", "未知")
+
+    if not download_url:
+        return "無效的下載連結", 400
+
+    try:
+        append_download_log(case_no=case_no, file_name=file_name, user_id=user_id)
+        # 清除快取，讓下次請求抓到最新的下載狀態
+        if case_no in detail_cache:
+            del detail_cache[case_no]
+    except Exception as e:
+        print(f"❌ 寫入下載紀錄失敗: {e}")
+
+    return redirect(download_url)
 
 
 if __name__ == "__main__":

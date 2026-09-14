@@ -13,7 +13,7 @@
             padding-top: 20px;
             padding-bottom: 20px;
         }
-		
+
 		.page-title {
 			font-weight: 700;
 			color: #2c3e50;
@@ -125,7 +125,7 @@
             if (!dateStr) return '';
             const cleaned = removeYear(dateStr);
             const parts = cleaned.split(' ');
-            
+
             if (parts.length >= 2) {
                 const datePart = parts[0]; // 例如：06/07
                 const timePart = parts.slice(1).join(' '); // 例如：08:00:00
@@ -203,10 +203,10 @@
 
                         data.records.forEach((item, index) => {
                             const uniqueId = `record-${currentOffset}-${index}`;
-                            
+
                             const rawStart = item.start_time || '';
                             const rawEnd = item.end_time || '';
-                            
+
                             // 判斷是否為同一天
                             let formattedStart = formatDateTimeWithColor(rawStart);
                             let formattedEnd = '';
@@ -227,7 +227,7 @@
 
                             // 處理送出時間：移除年份與秒數
                             const timestampFormatted = formatTimestamp(item.timestamp);
-                            
+
                             // 處理 RWD 地址換行
                             const formattedAddressHtml = formatAddress(item.address);
 
@@ -294,6 +294,18 @@
                 });
         }
 
+		function markAsDownloaded(element) {
+			// 找到該行 <li>，檢查是否已經有標籤，沒有的話就動態補上
+			let parentLi = element.closest('li');
+			if (!parentLi.querySelector('.badge')) {
+				let badge = document.createElement('span');
+				badge.className = 'badge bg-light text-success border border-success ms-2';
+				badge.style.fontSize = '0.7rem';
+				badge.innerText = '已下載';
+				parentLi.appendChild(badge);
+			}
+		}
+
         function fetchCaseDetail(caseNo, queryCode, cardId) {
             const cardElement = document.getElementById(cardId);
             if (!cardElement) return;
@@ -324,20 +336,32 @@
                         contactField.innerText = res.contact || "-";
 
                         if (res.attachments && res.attachments.length > 0) {
-                            let attList = res.attachments.map(att => `
-                            <li>
-                                <a href="${att.download_url}" target="_blank">${att.file_name}</a>
-                            </li>
-                        `).join("");
+							let attList = res.attachments.map(att => {
+								// 根據後端回傳的 is_downloaded 決定是否顯示標記
+								let badgeHtml = att.is_downloaded
+									? `<span class="badge bg-light text-success border border-success ms-2" style="font-size: 0.7rem;">已下載</span>`
+									: '';
 
-                            attachmentsContainer.innerHTML = `
-                            <hr class="my-2">
-                            <div style="font-size: 0.85rem;">
-                                <strong>📎 相關附件與公文：</strong>
-                                <ul class="mb-0 ps-3">${attList}</ul>
-                            </div>
-                        `;
-                        }
+								return `
+									<li class="mb-1">
+										<a href="/api/download-attachment?caseNo=${encodeURIComponent(caseNo)}&fileName=${encodeURIComponent(att.file_name)}&url=${encodeURIComponent(att.download_url)}&userId=${encodeURIComponent(userId)}"
+										   target="_blank"
+										   onclick="markAsDownloaded(this)">
+										   ${att.file_name}
+										</a>
+										${badgeHtml}
+									</li>
+								`;
+							}).join("");
+
+							attachmentsContainer.innerHTML = `
+								<hr class="my-2">
+								<div style="font-size: 0.85rem;">
+									<strong>📎 相關附件與公文：</strong>
+									<ul class="mb-0 ps-3">${attList}</ul>
+								</div>
+							`;
+						}
                     } else {
                         statusBadge.className = "badge bg-danger badge-status";
                         statusBadge.innerText = "查詢失敗";

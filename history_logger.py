@@ -1,11 +1,15 @@
-import os
 import csv
-import pandas as pd
+import os
 from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
+
 from models import ApplicationResultRecord
 
 STATUS_LOG_FILE = "status_history.csv"
 LOG_CSV_FILE = "applications_log.csv"
+DOWNLOAD_LOG_FILE = "download_history.csv"
 
 
 def init_csv_log():
@@ -107,3 +111,33 @@ def get_latest_statuses_for_batch(case_nos: list) -> dict:
     except Exception as e:
         print(f"❌ 批次讀取狀態日誌失敗: {e}")
         return {}
+
+
+def append_download_log(case_no, file_name, user_id="未知"):
+    """記錄附件下載的行為"""
+    file_exists = Path(DOWNLOAD_LOG_FILE).is_file()
+    with open(DOWNLOAD_LOG_FILE, mode="a", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(["時間", "使用者ID", "案件編號", "檔案名稱"])
+        writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_id, case_no, file_name])
+
+
+def get_downloaded_attachments():
+    """取得所有已下載過的附件紀錄（以 (案件編號, 檔案名稱) 為 Key 的集合）"""
+    downloaded_set = set()
+    if not Path(DOWNLOAD_LOG_FILE).is_file():
+        return downloaded_set
+
+    try:
+        with open(DOWNLOAD_LOG_FILE, mode="r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                case_no = row.get("案件編號", "").strip()
+                file_name = row.get("檔案名稱", "").strip()
+                if case_no and file_name:
+                    downloaded_set.add((case_no, file_name))
+    except Exception as e:
+        print(f"❌ 讀取下載日誌失敗: {e}")
+
+    return downloaded_set
